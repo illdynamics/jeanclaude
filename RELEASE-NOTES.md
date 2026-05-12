@@ -2,6 +2,9 @@
 
 ## v0.2.1 — 2026-05-12
 
+### Licensing
+- Project relicensed under **Apache License 2.0** — added `LICENSE`, `NOTICE`, and `license` field to `package.json`
+
 ### Security Fixes
 - **Gateway mode no longer leaks `DEEPSEEK_API_KEY` to Claude child process** — child receives only local gateway token, gateway process handles upstream auth
 - Secret scanner implemented — detects real API keys, bearer tokens, and credential patterns across the repo

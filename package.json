@@ -7,5 +7,6 @@
     "test": "node --test tests/*.test.*",
     "check": "./scripts/check.sh"
   },
-  "type": "module"
+  "type": "module",
+  "license": "Apache-2.0"
 }
