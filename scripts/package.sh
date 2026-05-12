@@ -395,6 +395,7 @@ package_check() {
   if [[ ${#toplevel_dirs[@]} -gt 0 ]]; then
     # Deduplicate and sort
     local -a unique_dirs
+# shellcheck disable=SC2207
     IFS=$'\n' unique_dirs=($(printf '%s\n' "${toplevel_dirs[@]}" | sort -u))
     for d in "${unique_dirs[@]}"; do
       echo "  $d/"

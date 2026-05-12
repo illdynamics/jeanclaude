@@ -66,7 +66,8 @@ fi
 # ---------------------------------------------------------------------------
 # 2. Remove .DS_Store files (exclude reference trees)
 # ---------------------------------------------------------------------------
-macosx_removed=$removed_count # shellcheck disable=SC2034
+# shellcheck disable=SC2034
+macosx_removed=$removed_count
 note "scanning for .DS_Store files (excluding reference trees)..."
 
 ds_count=0
