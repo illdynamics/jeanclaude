@@ -3,7 +3,7 @@
 **Production-grade Claude Code CLI drop-in replacement routing to DeepSeek V4 models.**
 
 Run `jeanclaude` instead of `claude-code`. Same flags, same interactive behavior, same tool calls.
-But your prompts go to DeepSeek V4 models via your DEEPSEEK_API_KEY — no Anthropic account/API key needed.
+But your prompts go to DeepSeek V4 models via your `DEEPSEEK_API_KEY` — no Anthropic account/API key needed.
 
 <p align="center">
   <img src="./jeanclaude.jpg" alt="JeanClaude" width="80%">
