@@ -97,35 +97,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create package
+      - name: Create and validate package
         run: bash scripts/package.sh /tmp/jeanclaude-ci.zip
-
-      - name: Validate package
-        run: bash scripts/package.sh --check-archive /tmp/jeanclaude-ci.zip
-
-      - name: Inspect package contents
-        run: |
-          echo "Package entries:"
-          python3 -c "
-          import zipfile
-          with zipfile.ZipFile('/tmp/jeanclaude-ci.zip') as zf:
-              names = zf.namelist()
-              print(f'  Total: {len(names)} entries')
-              for n in sorted(names):
-                  print(f'  {n}')
-          "
-          echo "--- Forbidden checks ---"
-          python3 -c "
-          import zipfile, sys
-          forbidden = ['.git/', '.codeseeq/', '.jeanclaude/', '.claude/', 'claude-code/', 'open-responses/', '__pycache__/', '.env', 'node_modules/', '.sqlite', '.pyc', '.log']
-          with zipfile.ZipFile('/tmp/jeanclaude-ci.zip') as zf:
-              for name in zf.namelist():
-                  for pat in forbidden:
-                      if pat in name and name != '.env.example':
-                          print(f'FAIL: forbidden path in package: {name}')
-                          sys.exit(1)
-          print('Package hygiene: PASS')
-          "
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
@@ -229,9 +202,4 @@ jobs:
           files: ${{ env.archive }}
           generate_release_notes: false
 
-  quality-gates:
-    name: Quality Gates (Legacy)
-    if: false
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Legacy job replaced by static/test/package/docker jobs"
+
