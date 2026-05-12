@@ -19,11 +19,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     JEANCLAUDE_DOCUMENTS=off \
     NODE_ENV=production \
     npm_config_update_notifier=false
-# Deprecated (kept for backward compat in compose mode)
-ENV JEANCLAUDE_MODEL=deepseek-v4-flash \
-    JEANCLAUDE_PRO_MODEL=deepseek-v4-pro \
-    JEANCLAUDE_THINKING=disabled \
-    JEANCLAUDE_REASONING_EFFORT=high
+# Default profile if JEANCLAUDE_MODEL_PROFILE is not otherwise set
+ENV JEANCLAUDE_MODEL_PROFILE=v4-flash
 
 RUN set -eux; \
     apt-get update; \

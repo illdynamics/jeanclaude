@@ -122,10 +122,10 @@ jobs:
         run: docker build -t jeanclaude:ci .
 
       - name: Smoke — help
-        run: docker run --rm jeanclaude:ci --help
+        run: docker run --rm -e DEEPSEEK_API_KEY=sk-test-key jeanclaude:ci --help
 
       - name: Smoke — version
-        run: docker run --rm jeanclaude:ci --version
+        run: docker run --rm -e DEEPSEEK_API_KEY=sk-test-key jeanclaude:ci --version
 
       - name: Smoke — doctor
         run: docker run --rm -e DEEPSEEK_API_KEY=sk-test-key jeanclaude:ci doctor
