@@ -4,6 +4,12 @@
 
 JeanClaude authenticates Claude Code through DeepSeek's Anthropic-compatible endpoint using `DEEPSEEK_API_KEY`. It routes Claude Code to `https://api.deepseek.com/anthropic` and adds a local MCP tool sidecar for web search, document processing, and Open Responses synthesis — optionally all inside Docker.
 
+<p align="center">
+  <img src="./jeanclaude.jpg" alt="JeanClaude" width="80%">
+</p>
+
+Current version: v0.2.1
+
 ## Architecture
 
 ```
@@ -82,61 +88,78 @@ See [`docs/execution-modes.md`](./docs/execution-modes.md) for the full mode gui
 
 ## Quickstart
 
+### Option 1: curl one-liner (recommended)
+
 ```bash
-# 1. Copy and fill env
-cp .env.example .env
-# Edit .env — set DEEPSEEK_API_KEY at minimum
-
-# 2. Build (for Docker mode)
-make build
-
-# 3. Doctor check
-./bin/jeanclaude doctor
-
-# 4. Ping the API
-./bin/jeanclaude ping
-
-# 5. Run Claude Code
-./bin/jeanclaude "explain this repo"
+curl -fsSL https://raw.githubusercontent.com/illdynamics/jeanclaude/main/scripts/install.sh | bash
 ```
 
-See [`docs/quickstart.md`](./docs/quickstart.md) for a full 5-minute walkthrough.
+This downloads the latest release zip, extracts it, and runs `./jeanclaude install`
+which copies jeanclaude to `~/.config/jeanclaude`, creates a `~/bin/jeanclaude`
+launcher, and builds the Docker/Podman image.  After install, `jeanclaude` works
+from anywhere (if `~/bin` is on your `PATH`).
+
+### Option 2: git clone
+
+```bash
+git clone https://github.com/illdynamics/jeanclaude.git
+cd jeanclaude
+./jeanclaude install
+```
+
+### Running JeanClaude
+
+```bash
+# Set your DeepSeek API key (required)
+export DEEPSEEK_API_KEY="sk-your-deepseek-key"
+
+# Run Claude Code via JeanClaude
+jeanclaude -Y "explain this repo"
+
+# Print version
+jeanclaude --version
+
+# Show help
+jeanclaude help
+
+# List model profiles
+jeanclaude models
+```
+
+See [`docs/quickstart.md`](./docs/quickstart.md) for a full walkthrough.
 
 ## Installation
 
 ### Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) (or Podman with `podman compose`)
-- [Node.js](https://nodejs.org/) 22+ (Claude Code requires it; installed inside the Docker image)
-- Claude Code is installed automatically inside the JeanClaude Docker image via `npm install -g @anthropic-ai/claude-code`
+- **Docker** or **Podman** (for container mode — optional but recommended)
+- **Node.js 22+** (Claude Code requires it; installed inside the Docker image)
+- A **DeepSeek API key** — set `DEEPSEEK_API_KEY` in your environment
+
+The `./jeanclaude install` command handles everything else:
+- Copies the repo snapshot to `~/.config/jeanclaude`
+- Creates a `~/bin/jeanclaude` launcher (add to `PATH` for global access)
+- Auto-builds the Docker/Podman image
 
 ### Standalone Mode (No Docker)
-
-JeanClaude can also run standalone with a host-installed `claude` binary:
 
 ```bash
 # Install Claude Code globally
 npm install -g @anthropic-ai/claude-code
 
 # Run JeanClaude standalone
-./bin/jeanclaude-standalone "explain this repo"
+jeanclaude -Y "explain this repo"
 ```
 
-### Setup
+### Commands
 
 ```bash
-# Clone the repo
-git clone https://github.com/your-org/jeanclaude.git
-cd jeanclaude
-
-# Copy and edit environment
-cp .env.example .env
-
-# Build the Docker image (optional — only needed for Docker mode)
-make build
-
-# Verify everything works
-./bin/jeanclaude doctor
+jeanclaude build       # Build/rebuild the Docker/Podman image
+jeanclaude install     # Install or reinstall locally
+jeanclaude help        # Show help
+jeanclaude doctor      # Check configuration
+jeanclaude models      # List model profiles
+jeanclaude --version   # Print version
 ```
 
 See [`docs/installation.md`](./docs/installation.md) for detailed setup.

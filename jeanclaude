@@ -118,7 +118,7 @@ cmd_build() {
 }
 
 cmd_install() {
-  local installer="${JEANCLAUDE_INSTALL_ROOT}/scripts/install.sh"
+  local installer="${JEANCLAUDE_INSTALL_ROOT}/scripts/install-local.sh"
   [[ -x "$installer" ]] || die "installer not found or not executable: $installer"
   shift
   exec "$installer" "$@"

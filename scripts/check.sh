@@ -99,7 +99,7 @@ done
 # ---------------------------------------------------------------------------
 if command -v shellcheck >/dev/null 2>&1; then
   note "running shellcheck"
-  if ! shellcheck bin/* scripts/*.sh; then
+  if ! shellcheck bin/jeanclaude bin/jeanclaude-entrypoint bin/jeanclaude-healthcheck bin/jeanclaude-print-config bin/jeanclaude-standalone scripts/*.sh; then
     fail "shellcheck reported issues"
   fi
 else
