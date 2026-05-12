@@ -252,7 +252,7 @@ JeanClaude uses four model profiles that bundle a DeepSeek model with a thinking
 | `v4-flash-thinking` | `deepseek-v4-flash` | enabled, effort `high` |
 | `v4-flash` | `deepseek-v4-flash` | disabled |
 
-Default: `v4-pro-thinking`. See [Model Profiles](./model-profiles.md) for the full guide.
+Default: `v4-flash`. See [Model Profiles](./model-profiles.md) for the full guide.
 
 ## Model Catalog
 
@@ -260,14 +260,13 @@ Defined in `config/model-catalog.json`:
 
 ```json
 {
-  "default": "deepseek-v4-flash",
-  "premium": "deepseek-v4-pro",
-  "aliases": [
-    "deepseek-v4-flash",
-    "deepseek-v4-pro",
-    "deepseek-v4-pro (1M context, internal only)"
-  ],
-  "profiles": ["v4-pro-thinking", "v4-pro", "v4-flash-thinking", "v4-flash"],
+  "profiles": {
+    "v4-flash": { "internal": "deepseek/deepseek-v4-flash" },
+    "v4-flash-thinking": { "internal": "deepseek/deepseek-v4-flash", "reasoningEffort": "high" },
+    "v4-pro": { "internal": "deepseek/deepseek-v4-pro" },
+    "v4-pro-thinking": { "internal": "deepseek/deepseek-v4-pro", "reasoningEffort": "high" }
+  },
+  "default": "v4-flash",
   "reasoningEfforts": ["high", "max"],
   "thinkingDefault": "disabled"
 }
@@ -311,7 +310,7 @@ Generated at `$JEANCLAUDE_CLAUDE_HOME/settings.json` at container startup:
 }
 ```
 
-The model in settings reflects the resolved profile (e.g., `v4-pro-thinking` resolves to `deepseek-v4-pro`).
+The model in settings reflects the resolved profile (e.g., `v4-flash` resolves to `deepseek-v4-flash`).
 
 ## Related Documentation
 

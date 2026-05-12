@@ -15,11 +15,11 @@ The recommended way to configure models is through a **model profile**. A profil
 
 | Variable | Default | Description |
 |---|---|---|
-| `JEANCLAUDE_MODEL_PROFILE` | `v4-pro-thinking` | Model profile: `v4-pro-thinking`, `v4-pro`, `v4-flash-thinking`, or `v4-flash` |
+| `JEANCLAUDE_MODEL_PROFILE` | `v4-flash` | Model profile: `v4-pro-thinking`, `v4-pro`, `v4-flash-thinking`, or `v4-flash` |
 
 ```bash
 # .env
-JEANCLAUDE_MODEL_PROFILE=v4-pro-thinking
+JEANCLAUDE_MODEL_PROFILE=v4-flash
 ```
 
 See [Model Profiles](./model-profiles.md) for detailed profile descriptions, backend mappings, and when to use each.
@@ -211,7 +211,7 @@ DEEPSEEK_API_KEY=sk-prod-deepseek-key
 RESPONSE_API_KEY=a8f3c9e1b4d2076f5a3c8e9d1b4f6072
 
 # Model Profile (recommended)
-JEANCLAUDE_MODEL_PROFILE=v4-pro-thinking
+JEANCLAUDE_MODEL_PROFILE=v4-flash
 
 # Execution Mode
 JEANCLAUDE_MODE=direct

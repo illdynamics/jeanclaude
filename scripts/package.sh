@@ -424,8 +424,8 @@ main() {
       ;;
     *)
       [[ $# -le 1 ]] || die "too many arguments"
-      timestamp="$(date +%Y%m%d-%H%M%S)"
-      default_zip="${repo_root}/dist/jeanclaude-${timestamp}.zip"
+      version="${JEANCLAUDE_VERSION:-$(cat "${repo_root}/VERSION" 2>/dev/null || date +%Y%m%d-%H%M%S)}"
+      default_zip="${repo_root}/dist/jeanclaude-${version}.zip"
       create_package "${1:-$default_zip}"
       ;;
   esac

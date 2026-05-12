@@ -15,7 +15,7 @@
       "reasoningEffort": "high"
     }
   },
-  "default": "v4-pro-thinking",
+  "default": "v4-flash",
   "reasoningEfforts": [
     "high",
     "max"

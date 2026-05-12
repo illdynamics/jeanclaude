@@ -52,7 +52,7 @@ const MODEL_PROFILES: Record<string, ModelProfile> = {
     backendModel: "deepseek-v4-flash",
     thinkingEnabled: false,
     effort: "low",
-    description: "DeepSeek V4 Flash – fast, no thinking",
+    description: "DeepSeek V4 Flash – fast, no thinking (default)",
   },
   "v4-flash-thinking": {
     label: "v4-flash-thinking",
@@ -73,12 +73,12 @@ const MODEL_PROFILES: Record<string, ModelProfile> = {
     backendModel: "deepseek-v4-pro",
     thinkingEnabled: true,
     effort: "max",
-    description: "DeepSeek V4 Pro – with thinking, max effort (default)",
+    description: "DeepSeek V4 Pro – with thinking, max effort",
   },
 };
 
 const VALID_PROFILES = Object.keys(MODEL_PROFILES);
-const DEFAULT_PROFILE = "v4-pro-thinking";
+const DEFAULT_PROFILE = "v4-flash";
 
 /** Raw DeepSeek / legacy names that we explicitly reject. */
 const REJECTED_MODEL_NAMES = new Set([

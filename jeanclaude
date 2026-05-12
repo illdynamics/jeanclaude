@@ -1,31 +1,23 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# ── JeanClaude launcher ──────────────────────────────────────────────────
+# ── JeanClaude launcher & installer ──────────────────────────────────────
 # Drop this at the repo root.  It learns its own location so it works
 # whether you call it as ./jeanclaude or ~/bin/jeanclaude.
 #
 # Subcommands:
 #   build     Build the Docker/Podman image locally
 #   install   Install jeanclaude into ~/.config/jeanclaude + ~/bin/jeanclaude
+#   update    Re-install from installed location (pulls git + rebuilds)
 #   help      Show this help
 #
 # Everything else is forwarded to the standalone wrapper (direct mode) or
 # the Docker Compose runner (container mode), whichever is appropriate.
 # ─────────────────────────────────────────────────────────────────────────
 
-log() {
-  printf '[jeanclaude] %s\n' "$*" >&2
-}
-
-warn() {
-  printf '[jeanclaude:warn] %s\n' "$*" >&2
-}
-
-die() {
-  printf '[jeanclaude:error] %s\n' "$*" >&2
-  exit 1
-}
+log()   { printf '[jeanclaude] %s\n' "$*" >&2; }
+warn()  { printf '[jeanclaude:warn] %s\n' "$*" >&2; }
+die()   { printf '[jeanclaude:error] %s\n' "$*" >&2; exit 1; }
 
 is_truthy() {
   case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
@@ -108,7 +100,10 @@ ensure_image() {
   fi
 }
 
-# ── subcommands ─────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+# SUBCOMMANDS
+# ═══════════════════════════════════════════════════════════════════════
+
 cmd_build() {
   local CONTAINER
   CONTAINER="$(detect_container)"
@@ -118,10 +113,165 @@ cmd_build() {
 }
 
 cmd_install() {
-  local installer="${JEANCLAUDE_INSTALL_ROOT}/scripts/install-local.sh"
-  [[ -x "$installer" ]] || die "installer not found or not executable: $installer"
-  shift
-  exec "$installer" "$@"
+  local src_root="$JEANCLAUDE_INSTALL_ROOT"
+  local install_dir="${JEANCLAUDE_INSTALL_DIR:-${HOME}/.config/jeanclaude}"
+  local bin_dir="${JEANCLAUDE_BIN_DIR:-${HOME}/bin}"
+
+  # Only shift if there are extra args (like --no-build)
+  local skip_build=false
+  local passthru_args=()
+  for arg in "$@"; do
+    case "$arg" in
+      --no-build) skip_build=true ;;
+      *) passthru_args+=("$arg") ;;
+    esac
+  done
+
+  # ── Safety: don't install into the source repo ──────────────────────
+  if [[ "${install_dir}" != "${src_root}" ]]; then
+    if [[ "${install_dir}/" == "${src_root}/"* ]]; then
+      die "install dir cannot be inside source repo: ${install_dir}"
+    fi
+  fi
+  if [[ "${bin_dir}" != "${src_root}" ]]; then
+    if [[ "${bin_dir}/" == "${src_root}/"* ]]; then
+      die "bin dir cannot be inside source repo: ${bin_dir}"
+    fi
+  fi
+  log "installing to ${install_dir}"
+  log "  launcher: ${bin_dir}/jeanclaude"
+
+  mkdir -p "$install_dir" "$bin_dir"
+
+  # ── Copy repo snapshot to install dir ───────────────────────────────
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete \
+      --exclude '.git/' \
+      --exclude '.codeseeq/' \
+      --exclude '.jeanclaude/' \
+      --exclude '.claude/' \
+      --exclude 'claude-code/' \
+      --exclude 'open-responses/' \
+      --exclude '.env' \
+      --exclude '.env.*' \
+      --exclude '.DS_Store' \
+      --exclude '__MACOSX/' \
+      --exclude 'node_modules/' \
+      --exclude '.tmp-*/' \
+      --exclude 'dist/' \
+      --exclude 'tools/node_modules/' \
+      --exclude 'gateway/node_modules/' \
+      "$src_root/" "$install_dir/"
+  else
+    tar -C "$src_root" \
+      --exclude '.git' \
+      --exclude '.codeseeq' \
+      --exclude '.jeanclaude' \
+      --exclude '.claude' \
+      --exclude 'claude-code' \
+      --exclude 'open-responses' \
+      --exclude '.env' \
+      --exclude '.env.*' \
+      --exclude '.DS_Store' \
+      --exclude '__MACOSX' \
+      --exclude 'node_modules' \
+      --exclude 'dist' \
+      --exclude 'tools/node_modules' \
+      --exclude 'gateway/node_modules' \
+      --exclude '.tmp-*' \
+      -cf - . | tar -C "$install_dir" -xf -
+  fi
+
+  chmod +x "$install_dir/jeanclaude" \
+          "$install_dir/scripts/install.sh" \
+          "$install_dir/bin/jeanclaude" \
+          "$install_dir/bin/jeanclaude-standalone" \
+          2>/dev/null || true
+
+  # ── Create ~/bin/jeanclaude launcher ────────────────────────────────
+  launcher="${bin_dir}/jeanclaude"
+  cat > "$launcher" <<LAUNCHER_EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+exec "${install_dir}/jeanclaude" "\$@"
+LAUNCHER_EOF
+  chmod +x "$launcher"
+
+  log "installed repo snapshot to ${install_dir}"
+  log "installed launcher to ${launcher}"
+
+  # ── Ensure Claude Code is installed ─────────────────────────────────
+  log "checking for Claude Code ..."
+  if command -v claude >/dev/null 2>&1; then
+    local claude_ver
+    claude_ver="$(claude --version 2>&1 | head -1 || true)"
+    log "claude found: ${claude_ver}"
+  elif command -v npm >/dev/null 2>&1; then
+    log "installing Claude Code (npm install -g @anthropic-ai/claude-code) ..."
+    npm install -g @anthropic-ai/claude-code
+    local claude_ver
+    claude_ver="$(claude --version 2>&1 | head -1 || true)"
+    log "Claude Code installed: ${claude_ver}"
+  else
+    log "npm not found; skipping Claude Code installation."
+    log "You will need Claude Code: npm install -g @anthropic-ai/claude-code"
+  fi
+
+  # ── Auto-build image unless --no-build ──────────────────────────────
+  if ! "$skip_build"; then
+    if command -v podman >/dev/null 2>&1 || command -v docker >/dev/null 2>&1; then
+      log "building Docker/Podman image ..."
+      "${install_dir}/jeanclaude" build || log "build failed; you can rebuild later with: jeanclaude build"
+    else
+      log "no container runtime found; skipping image build"
+    fi
+  else
+    log "skipping image build (--no-build)"
+  fi
+
+  # ── PATH hint ───────────────────────────────────────────────────────
+  case ":${PATH}:" in
+    *":${bin_dir}:"*) ;;
+    *)
+      log "add ${bin_dir} to your PATH to use 'jeanclaude' from anywhere:"
+      log "  export PATH=\"${bin_dir}:\$PATH\""
+      log "  # or add it to your ~/.zshrc / ~/.bashrc"
+      ;;
+  esac
+
+  log "install complete. Run: jeanclaude --version"
+}
+
+cmd_update() {
+  # If we're running from the install dir, pull latest and re-install
+  local install_dir="${JEANCLAUDE_INSTALL_DIR:-${HOME}/.config/jeanclaude}"
+  local bin_dir="${JEANCLAUDE_BIN_DIR:-${HOME}/bin}"
+
+  if [[ ! -d "$install_dir" ]]; then
+    die "not installed: ${install_dir} does not exist. Run 'jeanclaude install' first."
+  fi
+
+  log "updating ${install_dir} from git ..."
+  if [[ -d "${install_dir}/.git" ]]; then
+    git -C "$install_dir" pull --ff-only || {
+      log "git pull failed; falling back to fresh clone"
+      rm -rf "${install_dir}.bak"
+      mv "$install_dir" "${install_dir}.bak"
+      git clone --depth 1 "https://github.com/illdynamics/jeanclaude.git" "$install_dir"
+      rm -rf "${install_dir}.bak"
+    }
+  else
+    log "no .git in install dir; re-cloning ..."
+    local tmpdir
+    tmpdir="$(mktemp -d)"
+    git clone --depth 1 "https://github.com/illdynamics/jeanclaude.git" "$tmpdir"
+    rsync -a --delete "$tmpdir/" "$install_dir/"
+    rm -rf "$tmpdir"
+  fi
+
+  log "re-running install ..."
+  exec env JEANCLAUDE_INSTALL_DIR="$install_dir" JEANCLAUDE_BIN_DIR="$bin_dir" JEANCLAUDE_AUTO_BUILD=true 
+    "${install_dir}/jeanclaude" install --no-build "$@"    JEANCLAUDE_AUTO_BUILD=true
 }
 
 cmd_help() {
@@ -129,29 +279,44 @@ cmd_help() {
 Usage:
   ./jeanclaude build                 Build the Docker/Podman image locally
   ./jeanclaude install               Install into ~/.config/jeanclaude + ~/bin/jeanclaude
+  ./jeanclaude update                Pull latest from git and re-install
   ./jeanclaude help                  Show this help
   ./jeanclaude [args...]             Run jeanclaude (forwarded to standalone wrapper)
 
+Options for install:
+  --no-build                         Skip Docker/Podman image build
+
 The build command auto-detects docker or podman (podman preferred).
-Install auto-builds the image if it hasn't been built yet.
+Install copies the repo, creates a launcher, installs Claude Code,
+and auto-builds the Docker image.
 After install, you can run 'jeanclaude' directly from anywhere.
 
 Environment:
   JEANCLAUDE_IMAGE          Image name (default: jeanclaude:dev)
   JEANCLAUDE_BUILD_CONTEXT  Build context directory (default: repo root)
   JEANCLAUDE_AUTO_BUILD     Auto-build on install (default: true)
+  JEANCLAUDE_INSTALL_DIR    Install directory (default: ~/.config/jeanclaude)
+  JEANCLAUDE_BIN_DIR        Bin directory for launcher (default: ~/bin)
   CONTAINER                 Force podman or docker
 HELP
 }
 
-# ── main dispatch ───────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+# MAIN DISPATCH
+# ═══════════════════════════════════════════════════════════════════════
+
 case "${1:-}" in
   build)
     shift
     cmd_build "$@"
     ;;
   install)
+    shift
     cmd_install "$@"
+    ;;
+  update)
+    shift
+    cmd_update "$@"
     ;;
   help|--help|-h)
     cmd_help
@@ -176,6 +341,6 @@ case "${1:-}" in
       exec "$compose_runner" "$@"
     fi
 
-    die "no jeanclaude runtime found. Run './jeanclaude install' first, or set JEANCLAUDE_CLAUDE_BIN."
+    die "no jeanclaude runtime found. Run './jeanclaude install' first."
     ;;
 esac

@@ -99,7 +99,7 @@ var MODEL_PROFILES = {
     backendModel: "deepseek-v4-flash",
     thinkingEnabled: false,
     effort: "low",
-    description: "DeepSeek V4 Flash \u2013 fast, no thinking"
+    description: "DeepSeek V4 Flash \u2013 fast, no thinking (default)"
   },
   "v4-flash-thinking": {
     label: "v4-flash-thinking",
@@ -120,11 +120,11 @@ var MODEL_PROFILES = {
     backendModel: "deepseek-v4-pro",
     thinkingEnabled: true,
     effort: "max",
-    description: "DeepSeek V4 Pro \u2013 with thinking, max effort (default)"
+    description: "DeepSeek V4 Pro \u2013 with thinking, max effort"
   }
 };
 var VALID_PROFILES = Object.keys(MODEL_PROFILES);
-var DEFAULT_PROFILE = "v4-pro-thinking";
+var DEFAULT_PROFILE = "v4-flash";
 var REJECTED_MODEL_NAMES = /* @__PURE__ */ new Set([
   "deepseek-chat",
   "deepseek-reasoner",

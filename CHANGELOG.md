@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker healthcheck (no longer requires Open Responses)
 - Docker Compose dependency (runner decoupled from Open Responses)
 - `.env.example` stale defaults removed
-- Model catalog default → `v4-pro-thinking`
+- Model catalog default → `v4-flash`
 
 ### Added
 - `VERSION` file
@@ -43,11 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Model profiles** — four curated profiles bundling DeepSeek models with thinking presets:
-  - `v4-pro-thinking`: `deepseek-v4-pro` with max-effort thinking (new default)
+  - `v4-pro-thinking`: `deepseek-v4-pro` with max-effort thinking
   - `v4-pro`: `deepseek-v4-pro` with thinking disabled
   - `v4-flash-thinking`: `deepseek-v4-flash` with high-effort thinking
   - `v4-flash`: `deepseek-v4-flash` with thinking disabled
-- **`JEANCLAUDE_MODEL_PROFILE`** env var (default `v4-pro-thinking`) to select the default profile.
+- **`JEANCLAUDE_MODEL_PROFILE`** env var (default `v4-flash`) to select the default profile.
 - **`--profile`** CLI flag for per-command profile selection: `jeanclaude --profile v4-pro -p "review this"`.
 - **Profile validation** — invalid profile names are rejected with a clear error message listing valid options.
 - **`jeanclaude models`** command to list available model profiles.
@@ -80,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Default model profile** changed from `deepseek-v4-flash` (thinking disabled) to `v4-pro-thinking` (deepseek-v4-pro with max-effort thinking).
+- **Default model profile** changed from `deepseek-v4-flash` (thinking disabled) to `v4-flash` (fast, no thinking).
 - **`JEANCLAUDE_MODE`** now supports `auto` in addition to `direct` and `gateway`.
 - Updated `docs/configuration.md` with all new env vars and deprecated aliases section.
 - Updated `docs/architecture.md` with execution modes, gateway modes, state directories, and model profiles.

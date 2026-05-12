@@ -118,7 +118,7 @@ The most challenging interaction is **thinking + tool calls**:
 **Recommendations:**
 
 1. **Test before enabling:** Run `scripts/smoke-thinking-tool-loop.sh` to verify thinking + tools works in your environment
-2. **Default conservative:** JeanClaude's previous default was `JEANCLAUDE_THINKING=disabled`. The new default (`v4-pro-thinking`) enables thinking but you can switch to `v4-pro` if you encounter tool-loop issues
+2. **Default conservative:** JeanClaude's previous default was `JEANCLAUDE_THINKING=disabled`. The new default (`v4-flash`) does not enable thinking but you can switch to `v4-pro` if you encounter tool-loop issues
 3. **Gateway as fallback:** If direct mode thinking + tools fails, switch to gateway mode where the gateway can strip or patch thinking directives
 
 ## Per-Command Overrides

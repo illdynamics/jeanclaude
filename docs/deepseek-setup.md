@@ -31,8 +31,8 @@ DEEPSEEK_API_KEY=sk-your-deepseek-api-key
 JeanClaude provides four curated model profiles. Pick one:
 
 ```bash
-# Recommended default — pro model with max-effort thinking
-JEANCLAUDE_MODEL_PROFILE=v4-pro-thinking
+# Recommended default — flash model (fast, no thinking)
+JEANCLAUDE_MODEL_PROFILE=v4-flash
 
 # Pro model, no thinking (faster, cheaper)
 JEANCLAUDE_MODEL_PROFILE=v4-pro
@@ -137,7 +137,7 @@ JeanClaude offers two selection approaches:
 
 ```bash
 # Set in .env
-JEANCLAUDE_MODEL_PROFILE=v4-pro-thinking
+JEANCLAUDE_MODEL_PROFILE=v4-flash
 
 # Per-command override
 jeanclaude --profile v4-flash -p "quick fix"

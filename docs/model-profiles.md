@@ -11,7 +11,7 @@ JeanClaude provides four curated **model profiles** that bundle a DeepSeek model
 | `v4-flash-thinking` | `deepseek-v4-flash` | enabled | `high` | Cost-effective reasoning, mid-complexity analysis |
 | `v4-flash` | `deepseek-v4-flash` | disabled | — | Fast edits, simple fixes, interactive coding |
 
-**Default profile:** `v4-pro-thinking`
+**Default profile:** `v4-flash`
 
 ## Backend Mapping
 
@@ -35,27 +35,16 @@ There is no `v4-pro-thinking` with `high` effort or `v4-flash-thinking` with `ma
 
 ## When to Use Each
 
-### `v4-pro-thinking` (Recommended Default)
+### `v4-flash` (Recommended Default)
 
 | Criterion | Assessment |
 |---|---|
-| Task complexity | High — multi-step architecture, cross-cutting concerns |
-| Context size | Large codebases, long conversations |
-| Latency tolerance | High — expect longer response times |
-| Cost tolerance | Higher — max effort thinking burns more tokens |
+| Task complexity | Low — quick edits, simple transformations |
+| Context size | Small to medium |
+| Latency tolerance | Low — expect fastest responses |
+| Cost tolerance | Lowest — flash model, no thinking |
 
-Use for: architecture reviews, complex debugging, large refactors, security audits, design discussions where correctness matters more than speed.
-
-### `v4-pro`
-
-| Criterion | Assessment |
-|---|---|
-| Task complexity | Medium-high — detailed but well-scoped tasks |
-| Context size | Medium to large |
-| Latency tolerance | Medium |
-| Cost tolerance | Medium — pro model without thinking premium |
-
-Use for: detailed PR reviews, code generation, test authoring, documentation writing, any task that needs the pro model's capability but doesn't benefit from extended chain-of-thought.
+Use for: quick fixes, simple refactors, adding comments, formatting, generating boilerplate, interactive coding sessions where speed matters.
 
 ### `v4-flash-thinking`
 
@@ -68,16 +57,27 @@ Use for: detailed PR reviews, code generation, test authoring, documentation wri
 
 Use for: mid-complexity analysis, debugging moderate issues, explaining code, answering "why" questions about codebase structure. A good balance of reasoning power and cost.
 
-### `v4-flash`
+### `v4-pro`
 
 | Criterion | Assessment |
 |---|---|
-| Task complexity | Low — quick edits, simple transformations |
-| Context size | Small to medium |
-| Latency tolerance | Low — expect fastest responses |
-| Cost tolerance | Lowest — flash model, no thinking |
+| Task complexity | Medium-high — detailed but well-scoped tasks |
+| Context size | Medium to large |
+| Latency tolerance | Medium |
+| Cost tolerance | Medium — pro model without thinking premium |
 
-Use for: quick fixes, simple refactors, adding comments, formatting, generating boilerplate, interactive coding sessions where speed matters.
+Use for: detailed PR reviews, code generation, test authoring, documentation writing, any task that needs the pro model's capability but doesn't benefit from extended chain-of-thought.
+
+### `v4-pro-thinking`
+
+| Criterion | Assessment |
+|---|---|
+| Task complexity | High — multi-step architecture, cross-cutting concerns |
+| Context size | Large codebases, long conversations |
+| Latency tolerance | High — expect longer response times |
+| Cost tolerance | Higher — max effort thinking burns more tokens |
+
+Use for: architecture reviews, complex debugging, large refactors, security audits, design discussions where correctness matters more than speed.
 
 ## Configuration
 
@@ -85,12 +85,12 @@ Use for: quick fixes, simple refactors, adding comments, formatting, generating 
 
 ```bash
 # In .env
-JEANCLAUDE_MODEL_PROFILE=v4-pro-thinking
+JEANCLAUDE_MODEL_PROFILE=v4-flash
 ```
 
 | Variable | Default | Description |
 |---|---|---|
-| `JEANCLAUDE_MODEL_PROFILE` | `v4-pro-thinking` | Which model profile to use. Must be one of the four valid profiles. |
+| `JEANCLAUDE_MODEL_PROFILE` | `v4-flash` | Which model profile to use. Must be one of the four valid profiles. |
 
 ### CLI Flag
 
@@ -143,7 +143,7 @@ JeanClaude **rejects** invalid profile names with a clear error message. Example
 | `opus` | Not a JeanClaude profile. JeanClaude uses DeepSeek models |
 | `sonnet` | Not a JeanClaude profile. JeanClaude uses DeepSeek models |
 | `haiku` | Not a JeanClaude profile. JeanClaude uses DeepSeek models |
-| Empty / unset | Falls back to `JEANCLAUDE_MODEL_PROFILE` default (`v4-pro-thinking`) |
+| Empty / unset | Falls back to `JEANCLAUDE_MODEL_PROFILE` default (`v4-flash`) |
 
 ### Validation Message
 

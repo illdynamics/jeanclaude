@@ -1,7 +1,9 @@
 # JeanClaude
 
 **Production-grade Claude Code CLI drop-in replacement routing to DeepSeek V4 models.**
-Run jeanclaude instead of claude-code. Same flags, same interactive behavior, same tool calls. But your prompts go to DeepSeek V4 models via your DEEPSEEK_API_KEY — no Anthropic account/API key needed.
+
+Run `jeanclaude` instead of `claude-code`. Same flags, same interactive behavior, same tool calls.
+But your prompts go to DeepSeek V4 models via your DEEPSEEK_API_KEY — no Anthropic account/API key needed.
 
 <p align="center">
   <img src="./jeanclaude.jpg" alt="JeanClaude" width="80%">
@@ -71,7 +73,7 @@ JeanClaude provides four curated **model profiles** that bundle a DeepSeek model
 | `v4-flash-thinking` | `deepseek-v4-flash` | enabled, `high` | Cost-effective reasoning, mid-complexity analysis |
 | `v4-flash` | `deepseek-v4-flash` | disabled | Fast edits, simple fixes, interactive coding |
 
-**Default profile:** `v4-pro-thinking`
+**Default profile:** `v4-flash`
 
 ```bash
 # Set default profile
@@ -187,7 +189,7 @@ All configuration is done through environment variables in `.env`.
 | Variable | Default | Description |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | *(required)* | DeepSeek API key for model calls |
-| `JEANCLAUDE_MODEL_PROFILE` | `v4-pro-thinking` | Model profile: `v4-pro-thinking`, `v4-pro`, `v4-flash-thinking`, `v4-flash` |
+| `JEANCLAUDE_MODEL_PROFILE` | `v4-flash` | Model profile: `v4-pro-thinking`, `v4-pro`, `v4-flash-thinking`, `v4-flash` |
 | `JEANCLAUDE_MODE` | `direct` | Execution mode: `direct`, `gateway`, or `auto` |
 
 ### Gateway (when `JEANCLAUDE_MODE=gateway`)
@@ -215,7 +217,7 @@ See [`docs/configuration.md`](./docs/configuration.md) for the complete referenc
 ## CLI Usage
 
 ```bash
-# Interactive session (uses default profile v4-pro-thinking)
+# Interactive session (uses default profile v4-flash)
 jeanclaude
 
 # Single prompt (non-interactive)
@@ -287,7 +289,7 @@ JeanClaude authenticates Claude Code through DeepSeek's Anthropic-compatible end
 
 1. Get an API key from [platform.deepseek.com](https://platform.deepseek.com/api_keys)
 2. Set `DEEPSEEK_API_KEY=sk-...` in `.env`
-3. Choose a model profile: `JEANCLAUDE_MODEL_PROFILE=v4-pro-thinking`
+3. Choose a model profile: `JEANCLAUDE_MODEL_PROFILE=v4-flash`
 4. Run `./bin/jeanclaude doctor` and `./bin/jeanclaude ping`
 
 See [`docs/deepseek-setup.md`](./docs/deepseek-setup.md) for detailed setup and profile selection guidance.

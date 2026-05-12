@@ -11,6 +11,12 @@
 - Parent Anthropic/Claude auth variables are now always stripped before launching Claude Code
 - Direct mode always overrides `ANTHROPIC_BASE_URL` to DeepSeek endpoint, never inherits from parent
 
+
+### Model Defaults
+- **Default profile changed from `v4-pro-thinking` to `v4-flash`** — faster interactive experience by default; use `--profile v4-pro-thinking` for deep reasoning tasks
+- Model catalog default updated to match (now `v4-flash`)
+- All documentation updated to reflect new default
+
 ### Bug Fixes
 - Gateway test nesting fixed — tests 9 and 10 now run independently (were nested inside test 8)
 - `RESONSE_API_KEY` typo fixed to `RESPONSE_API_KEY` across all config files
