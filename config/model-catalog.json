@@ -1,0 +1,24 @@
+{
+  "profiles": {
+    "v4-flash": {
+      "internal": "deepseek/deepseek-v4-flash"
+    },
+    "v4-flash-thinking": {
+      "internal": "deepseek/deepseek-v4-flash",
+      "reasoningEffort": "high"
+    },
+    "v4-pro": {
+      "internal": "deepseek/deepseek-v4-pro"
+    },
+    "v4-pro-thinking": {
+      "internal": "deepseek/deepseek-v4-pro",
+      "reasoningEffort": "high"
+    }
+  },
+  "default": "v4-pro-thinking",
+  "reasoningEfforts": [
+    "high",
+    "max"
+  ],
+  "thinkingDefault": "disabled"
+}

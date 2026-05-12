@@ -1,0 +1,71 @@
+name: jeanclaude-open-responses
+
+x-open-responses-shared-env: &open-responses-shared-env
+  AGENTS_API_KEY: ${RESPONSE_API_KEY:-jrsp-local-dev-key}
+  AGENTS_API_KEY_HEADER_NAME: ${RESPONSE_API_KEY_HEADER_NAME:-Authorization}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  UNSTRUCTURED_API_KEY: ${UNSTRUCTURED_API_KEY:-}
+  BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+  RESPONSES_API_PORT: ${RESPONSES_API_PORT:-8080}
+  MEMORY_STORE_PASSWORD: ${MEMORY_STORE_PASSWORD:-obviously_not_a_safe_password}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+  OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  EMBEDDING_MODEL_ID: ${EMBEDDING_MODEL_ID:-openai/text-embedding-3-large}
+  ENABLE_RESPONSES: "True"
+  PG_DSN: postgres://postgres:${MEMORY_STORE_PASSWORD:-obviously_not_a_safe_password}@open-responses-db:5432/postgres
+  INTEGRATION_SERVICE_URL: ${INTEGRATION_SERVICE_URL:-http://open-responses-integrations:8000}
+
+services:
+  open-responses:
+    image: ${OPEN_RESPONSES_IMAGE:-julepai/agents-api:${OPEN_RESPONSES_TAG:-responses-latest}}
+    environment:
+      <<: *open-responses-shared-env
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      open-responses-db:
+        condition: service_healthy
+      open-responses-integrations:
+        condition: service_started
+      open-responses-migration:
+        condition: service_completed_successfully
+
+  open-responses-integrations:
+    image: ${OPEN_RESPONSES_INTEGRATIONS_IMAGE:-julepai/integrations:${OPEN_RESPONSES_TAG:-responses-latest}}
+    environment:
+      <<: *open-responses-shared-env
+
+  open-responses-db:
+    image: timescale/timescaledb-ha:pg17
+    environment:
+      POSTGRES_PASSWORD: ${MEMORY_STORE_PASSWORD:-obviously_not_a_safe_password}
+    volumes:
+      - open-responses-db-data:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  open-responses-vectorizer-worker:
+    image: timescale/pgai-vectorizer-worker:latest
+    environment:
+      PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:${MEMORY_STORE_PASSWORD:-obviously_not_a_safe_password}@open-responses-db:5432/postgres
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    command: ["--poll-interval", "5s"]
+    depends_on:
+      open-responses-db:
+        condition: service_healthy
+
+  open-responses-migration:
+    image: julepai/memory-store-migrations:latest
+    command: ["-path", "/migrations", "-database", "postgres://postgres:${MEMORY_STORE_PASSWORD:-obviously_not_a_safe_password}@open-responses-db:5432/postgres?sslmode=disable", "up"]
+    restart: "no"
+    depends_on:
+      open-responses-db:
+        condition: service_healthy
+
+volumes:
+  open-responses-db-data:

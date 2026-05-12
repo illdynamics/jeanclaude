@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Direct mode healthcheck: only requires claude + node + jeanclaude
+command -v node >/dev/null 2>&1 || exit 1
+command -v claude >/dev/null 2>&1 || exit 1
+jeanclaude --version >/dev/null 2>&1 || exit 1
+exit 0

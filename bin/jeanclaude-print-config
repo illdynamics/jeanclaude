@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+: "${JEANCLAUDE_CLAUDE_HOME:=/home/jeanclaude/.claude}"
+: "${JEANCLAUDE_OPEN_RESPONSES_URL:=http://open-responses:8080}"
+
+redact() {
+  local value="$1"
+  if [[ -z "$value" ]]; then
+    printf 'missing'
+    return 0
+  fi
+  local n=${#value}
+  if (( n <= 6 )); then
+    printf '***'
+    return 0
+  fi
+  printf '%s***%s' "${value:0:2}" "${value:n-3:3}"
+}
+
+printf 'mode=%s\n' "${JEANCLAUDE_MODE:-direct}"
+printf 'model=%s\n' "${JEANCLAUDE_MODEL:-deepseek-v4-flash}"
+printf 'pro_model=%s\n' "${JEANCLAUDE_PRO_MODEL:-deepseek-v4-pro}"
+printf 'thinking=%s\n' "${JEANCLAUDE_THINKING:-disabled}"
+printf 'effort=%s\n' "${JEANCLAUDE_REASONING_EFFORT:-high}"
+printf 'anthropic_base_url=%s\n' "${JEANCLAUDE_ANTHROPIC_BASE_URL:-https://api.deepseek.com/anthropic}"
+printf 'open_responses_url=%s\n' "${JEANCLAUDE_OPEN_RESPONSES_URL}"
+printf 'deepseek_api_key=%s\n' "$(redact "${DEEPSEEK_API_KEY:-}")"
+printf 'response_api_key=%s\n' "$(redact "${RESPONSE_API_KEY:-}")"
+printf 'claude_config_dir=%s\n' "${CLAUDE_CONFIG_DIR:-$JEANCLAUDE_CLAUDE_HOME}"
+
+if [[ -f "${JEANCLAUDE_CLAUDE_HOME}/settings.json" ]]; then
+  printf 'settings_json=%s\n' "${JEANCLAUDE_CLAUDE_HOME}/settings.json"
+fi
+if [[ -f "${JEANCLAUDE_CLAUDE_HOME}/.mcp.json" ]]; then
+  printf 'mcp_json=%s\n' "${JEANCLAUDE_CLAUDE_HOME}/.mcp.json"
+fi

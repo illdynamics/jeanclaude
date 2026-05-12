@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+log() {
+  printf '[jeanclaude] %s
+' "$*" >&2
+}
+
+warn() {
+  if [[ "${JEANCLAUDE_QUIET:-}" != "1" ]]; then
+    printf '[jeanclaude:warn] %s
+' "$*" >&2
+  fi
+}
+
+die() {
+  printf '[jeanclaude:error] %s
+' "$*" >&2
+  exit 1
+}
+
+# ── Deprecated env var migrations ────────────────────────────────────
+# JEANCLAUDE_BRIDGE_MODE -> JEANCLAUDE_GATEWAY_MODE
+if [[ -n "${JEANCLAUDE_BRIDGE_MODE:-}" ]]; then
+  if [[ -z "${JEANCLAUDE_GATEWAY_MODE:-}" ]]; then
+    export JEANCLAUDE_GATEWAY_MODE="$JEANCLAUDE_BRIDGE_MODE"
+  fi
+  warn "JEANCLAUDE_BRIDGE_MODE is deprecated; use JEANCLAUDE_GATEWAY_MODE instead"
+fi
+
+# RESPONSE_API_KEY -> JEANCLAUDE_OPEN_RESPONSES_API_KEY
+if [[ -z "${JEANCLAUDE_OPEN_RESPONSES_API_KEY:-}" && -n "${RESPONSE_API_KEY:-}" ]]; then
+  export JEANCLAUDE_OPEN_RESPONSES_API_KEY="$RESPONSE_API_KEY"
+  warn "RESPONSE_API_KEY is deprecated; use JEANCLAUDE_OPEN_RESPONSES_API_KEY instead"
+fi
+
+# ── Defaults ─────────────────────────────────────────────────────────
+: "${JEANCLAUDE_MODE:=direct}"
+: "${JEANCLAUDE_MODEL_PROFILE:=v4-pro-thinking}"
+: "${JEANCLAUDE_ANTHROPIC_BASE_URL:=https://api.deepseek.com/anthropic}"
+: "${JEANCLAUDE_OPEN_RESPONSES_URL:=http://open-responses:8080}"
+: "${JEANCLAUDE_OPEN_RESPONSES_PUBLIC_URL:=http://127.0.0.1:8080}"
+: "${JEANCLAUDE_WORKDIR:=/workspace}"
+: "${JEANCLAUDE_CLAUDE_HOME:=/home/jeanclaude/.claude}"
+: "${JEANCLAUDE_WEB_SEARCH:=off}"
+: "${JEANCLAUDE_DOCUMENTS:=off}"
+: "${JEANCLAUDE_DOCUMENT_STORE:=${JEANCLAUDE_WORKDIR}/.jeanclaude/documents}"
+: "${JEANCLAUDE_OPEN_RESPONSES_READY_TIMEOUT:=45}"
+: "${JEANCLAUDE_GATEWAY_MODE:=auto}"
+: "${JEANCLAUDE_GATEWAY_HOST:=127.0.0.1}"
+: "${JEANCLAUDE_GATEWAY_PORT:=auto}"
+: "${JEANCLAUDE_GATEWAY_URL:=}"
+: "${JEANCLAUDE_GATEWAY_KEEPALIVE:=0}"
+: "${JEANCLAUDE_GATEWAY_LOG_LEVEL:=info}"
+
+mkdir -p "$JEANCLAUDE_WORKDIR" "$JEANCLAUDE_CLAUDE_HOME" "$JEANCLAUDE_DOCUMENT_STORE"
+
+export JEANCLAUDE_GATEWAY_MODE JEANCLAUDE_GATEWAY_HOST JEANCLAUDE_GATEWAY_PORT
+export JEANCLAUDE_GATEWAY_URL JEANCLAUDE_GATEWAY_KEEPALIVE JEANCLAUDE_GATEWAY_LOG_LEVEL
+
+# ── Delegate to standalone wrapper ────────────────────────────────────
+STANDALONE=""
+if [[ -x /opt/jeanclaude/bin/jeanclaude-standalone.js ]] && command -v node >/dev/null 2>&1; then
+  STANDALONE="/opt/jeanclaude/bin/jeanclaude-standalone.js"
+elif [[ -x /usr/local/bin/jeanclaude-standalone ]]; then
+  exec /usr/local/bin/jeanclaude-standalone "$@"
+else
+  die "standalone wrapper not found"
+fi
+
+exec node "$STANDALONE" "$@"

@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "jeanclaude-tools": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/opt/jeanclaude/tools/dist/mcp-server.js"],
+      "env": {
+        "JEANCLAUDE_OPEN_RESPONSES_URL": "$JEANCLAUDE_OPEN_RESPONSES_URL",
+        "JEANCLAUDE_OPEN_RESPONSES_API_KEY": "$JEANCLAUDE_OPEN_RESPONSES_API_KEY",
+        "JEANCLAUDE_WEB_SEARCH": "$JEANCLAUDE_WEB_SEARCH",
+        "JEANCLAUDE_DOCUMENTS": "$JEANCLAUDE_DOCUMENTS",
+        "JEANCLAUDE_DOCUMENT_STORE": "$JEANCLAUDE_DOCUMENT_STORE",
+        "BRAVE_API_KEY": "$BRAVE_API_KEY",
+        "UNSTRUCTURED_API_KEY": "$UNSTRUCTURED_API_KEY",
+        "UNSTRUCTURED_API_URL": "$UNSTRUCTURED_API_URL"
+      }
+    }
+  }
+}

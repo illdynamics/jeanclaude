@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: |
+            tools/package-lock.json
+            gateway/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd tools && npm ci && cd ..
+          cd gateway && npm ci && cd ..
+
+      - name: Run check.sh
+        run: |
+          chmod +x scripts/check.sh scripts/secret-scan.sh scripts/package.sh
+          bash scripts/check.sh
+
+      - name: Run tests
+        run: |
+          if ls tests/*.test.* 1>/dev/null 2>&1; then
+            node --test tests/*.test.*
+          else
+            echo "No wrapper tests found; skipping."
+          fi
+
+      - name: Package check
+        run: bash scripts/package.sh --check
+
+      - name: Upload package artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jeanclaude-dist
+          path: dist/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  release:
+    name: Release (Manual)
+    if: github.event_name == 'workflow_dispatch'
+    needs: [quality-gates]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build package
+        run: bash scripts/package.sh
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jeanclaude-release
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30

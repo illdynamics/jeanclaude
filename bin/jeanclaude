@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+log() {
+  printf '[jeanclaude] %s
+' "$*" >&2
+}
+
+die() {
+  printf '[jeanclaude:error] %s
+' "$*" >&2
+  exit 1
+}
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "${script_dir}/.." && pwd)"
+cd "$repo_root"
+
+# ── Always delegate to standalone wrapper if it exists ─────────────────
+if [[ -x "${script_dir}/jeanclaude-standalone" ]]; then
+  exec "${script_dir}/jeanclaude-standalone" "$@"
+fi
+
+# ── Fallback: try compiled JS directly ────────────────────────────────
+if [[ -f "${script_dir}/jeanclaude-standalone.js" ]]; then
+  exec node "${script_dir}/jeanclaude-standalone.js" "$@"
+fi
+
+# ── Last resort: Docker Compose (only if standalone is missing) ───────
+# Safe dotenv load (no source/eval of .env)
+# shellcheck source=scripts/libdotenv.sh
+if [[ -f "${repo_root}/scripts/libdotenv.sh" ]]; then
+  source "${repo_root}/scripts/libdotenv.sh"
+  jeanclaude_load_dotenv "${repo_root}/.env"
+fi
+
+compose_cmd=()
+if command -v podman >/dev/null 2>&1; then
+  compose_cmd=(podman compose)
+elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  compose_cmd=(docker compose)
+else
+  die "standalone wrapper not found and docker/podman compose is not available"
+fi
+
+usage() {
+  cat <<'HELP'
+Usage:
+  ./bin/jeanclaude [--model MODEL] [--profile PROFILE] [--thinking|--no-thinking]
+                   [--effort high|max] [--mode direct|gateway|auto]
+                   [--gateway-mode auto|process|docker] <command>
+
+Commands:
+  doctor
+  ping
+  run [PROMPT...]
+  claude [ARGS...]
+  shell
+  config
+  serve
+  open-responses status|logs|ping
+  tools list|smoke
+  web-search "query"
+  document ingest <path>
+  document ask "question"
+  document query "query"
+HELP
+}
+
+runner_env_args=()
+gateway_env_args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --model|-m)
+      [[ $# -ge 2 ]] || die "missing value for $1"
+      runner_env_args+=(-e "JEANCLAUDE_MODEL=$2")
+      shift 2
+      ;;
+    --profile)
+      [[ $# -ge 2 ]] || die "missing value for --profile"
+      runner_env_args+=(-e "JEANCLAUDE_MODEL_PROFILE=$2")
+      shift 2
+      ;;
+    --thinking)
+      runner_env_args+=(-e "JEANCLAUDE_THINKING=enabled")
+      shift
+      ;;
+    --no-thinking)
+      runner_env_args+=(-e "JEANCLAUDE_THINKING=disabled")
+      shift
+      ;;
+    --effort)
+      [[ $# -ge 2 ]] || die "missing value for --effort"
+      runner_env_args+=(-e "JEANCLAUDE_REASONING_EFFORT=$2")
+      shift 2
+      ;;
+    --mode)
+      [[ $# -ge 2 ]] || die "missing value for --mode"
+      runner_env_args+=(-e "JEANCLAUDE_MODE=$2")
+      shift 2
+      ;;
+    --gateway-mode)
+      [[ $# -ge 2 ]] || die "missing value for --gateway-mode"
+      gateway_env_args+=(-e "JEANCLAUDE_GATEWAY_MODE=$2")
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [[ $# -eq 0 ]]; then
+  usage
+  exit 1
+fi
+
+common_run_args=(run --rm)
+if [[ ! -t 0 || ! -t 1 ]]; then
+  common_run_args+=(-T)
+fi
+
+# Collect all gateway env vars from .env (loaded via libdotenv)
+if [[ -n "${JEANCLAUDE_GATEWAY_MODE:-}" ]]; then
+  gateway_env_args+=(-e "JEANCLAUDE_GATEWAY_MODE=${JEANCLAUDE_GATEWAY_MODE}")
+fi
+if [[ -n "${JEANCLAUDE_GATEWAY_HOST:-}" ]]; then
+  gateway_env_args+=(-e "JEANCLAUDE_GATEWAY_HOST=${JEANCLAUDE_GATEWAY_HOST}")
+fi
+if [[ -n "${JEANCLAUDE_GATEWAY_PORT:-}" ]]; then
+  gateway_env_args+=(-e "JEANCLAUDE_GATEWAY_PORT=${JEANCLAUDE_GATEWAY_PORT}")
+fi
+if [[ -n "${JEANCLAUDE_GATEWAY_URL:-}" ]]; then
+  gateway_env_args+=(-e "JEANCLAUDE_GATEWAY_URL=${JEANCLAUDE_GATEWAY_URL}")
+fi
+if [[ -n "${JEANCLAUDE_GATEWAY_KEEPALIVE:-}" ]]; then
+  gateway_env_args+=(-e "JEANCLAUDE_GATEWAY_KEEPALIVE=${JEANCLAUDE_GATEWAY_KEEPALIVE}")
+fi
+# Always pass model profile from .env if set
+if [[ -n "${JEANCLAUDE_MODEL_PROFILE:-}" ]]; then
+  runner_env_args+=(-e "JEANCLAUDE_MODEL_PROFILE=${JEANCLAUDE_MODEL_PROFILE}")
+fi
+
+run_runner() {
+  "${compose_cmd[@]}" "${common_run_args[@]}" ${runner_env_args[@]+"${runner_env_args[@]}"} ${gateway_env_args[@]+"${gateway_env_args[@]}"} jeanclaude-runner "$@"
+}
+
+ensure_sidecar_started() {
+  "${compose_cmd[@]}" up -d open-responses open-responses-integrations open-responses-db open-responses-migration open-responses-vectorizer-worker >/dev/null
+}
+
+subcmd="$1"
+shift || true
+
+case "$subcmd" in
+  doctor|ping|run|shell|config)
+    ensure_sidecar_started
+    run_runner "$subcmd" "$@"
+    ;;
+
+  serve)
+    ensure_sidecar_started
+    run_runner serve "$@"
+    ;;
+
+  claude)
+    run_runner claude "$@"
+    ;;
+
+  open-responses)
+    nested="${1:-}"
+    shift || true
+    case "$nested" in
+      status)
+        "${compose_cmd[@]}" ps open-responses open-responses-integrations open-responses-db open-responses-vectorizer-worker open-responses-migration
+        ;;
+      logs)
+        "${compose_cmd[@]}" logs -f open-responses "$@"
+        ;;
+      ping)
+        ensure_sidecar_started
+        run_runner open-responses ping "$@"
+        ;;
+      *)
+        die "usage: ./bin/jeanclaude open-responses status|logs|ping"
+        ;;
+    esac
+    ;;
+
+  tools)
+    ensure_sidecar_started
+    nested="${1:-}"
+    shift || true
+    case "$nested" in
+      list|smoke)
+        run_runner tools "$nested" "$@"
+        ;;
+      *)
+        die "usage: ./bin/jeanclaude tools list|smoke"
+        ;;
+    esac
+    ;;
+
+  web-search)
+    ensure_sidecar_started
+    run_runner web-search "$@"
+    ;;
+
+  document)
+    ensure_sidecar_started
+    run_runner document "$@"
+    ;;
+
+  *)
+    # Treat unknown command as a prompt run fallback.
+    ensure_sidecar_started
+    run_runner run "$subcmd" "$@"
+    ;;
+esac
