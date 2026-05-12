@@ -255,22 +255,19 @@ fi
 # ---------------------------------------------------------------------------
 note "checking for banned files in tracked content"
 banned_patterns=(
-  '^\.env$'
-  '^\.env\.'
+  '^.env$'
+  '^.env.'
   '\.env$'
   '\.DS_Store$'
 )
 for bpat in "${banned_patterns[@]}"; do
-  hits="$(git ls-files --cached 2>/dev/null | grep "$bpat" || true)"
+  hits="$(git ls-files --cached 2>/dev/null | grep -v '^\.env\.example$' | grep "$bpat" || true)"
   if [[ -n "$hits" ]]; then
     while IFS= read -r f; do
-      # Allow .env.example
-      [[ "$f" == ".env.example" ]] && continue
       fail "banned file tracked by git: $f"
     done <<<"$hits"
   fi
 done
-
 # ---------------------------------------------------------------------------
 # 14. Release mode: extra package content assertions
 # ---------------------------------------------------------------------------
