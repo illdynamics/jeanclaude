@@ -94,6 +94,20 @@ chmod +x "$launcher"
 log "installed repo snapshot to ${JEANCLAUDE_INSTALL_DIR}"
 log "installed launcher to ${launcher}"
 
+# ── Ensure Claude Code is installed ─────────────────────────────────
+log "checking for Claude Code ..."
+if command -v claude >/dev/null 2>&1; then
+  claude_ver="$(claude --version 2>&1 | head -1 || true)"
+  log "claude found: ${claude_ver}"
+elif command -v npm >/dev/null 2>&1; then
+  log "installing Claude Code (npm install -g @anthropic-ai/claude-code) ..."
+  npm install -g @anthropic-ai/claude-code
+  claude_ver="$(claude --version 2>&1 | head -1 || true)"
+  log "Claude Code installed: ${claude_ver}"
+else
+  log "npm not found; skipping Claude Code installation."
+  log "You will need Claude Code: npm install -g @anthropic-ai/claude-code"
+fi
 # ── Auto-build image if requested ──────────────────────────────────────
 if command -v podman >/dev/null 2>&1 || command -v docker >/dev/null 2>&1; then
   if [[ "${JEANCLAUDE_AUTO_BUILD:-true}" != "false" ]]; then

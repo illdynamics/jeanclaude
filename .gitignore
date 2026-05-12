@@ -96,3 +96,10 @@ infra/terraform/*.tfstate.*
 # claude code
 claude-code
 claude-code/**
+
+# ---------------------------------------------------------------------------
+# Reference project clones (local dev only, never tracked)
+# ---------------------------------------------------------------------------
+codeseeq/
+codeseeq-github/
+demoni-github/
