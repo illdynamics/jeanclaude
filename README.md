@@ -43,7 +43,7 @@ jeanclaude -Y "explain this repo"
 
 # Print version
 jeanclaude --version
-
+```
 
 ## Architecture
 
