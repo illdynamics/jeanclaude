@@ -135,7 +135,7 @@ jobs:
 
       - name: Smoke — claude binary in container
         run: |
-          docker run --rm jeanclaude:ci claude --version
+          docker run --rm -e DEEPSEEK_API_KEY=sk-test-key jeanclaude:ci claude --version
           echo "Claude Code inside container: OK"
 
       - name: Smoke — gateway server starts in container
