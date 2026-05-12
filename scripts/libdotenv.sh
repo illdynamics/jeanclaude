@@ -90,7 +90,8 @@ jeanclaude_load_dotenv() {
       # not already set in the environment (don't override existing env vars).
       if jeanclaude_dotenv_key_allowed "$key" && [[ -z "${!key+x}" ]]; then
         printf -v "$key" '%s' "$value"
-        export "$key"
+        # shellcheck disable=SC2163
+export "$key"
       fi
     fi
   done < "$env_file"
