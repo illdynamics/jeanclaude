@@ -13,6 +13,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Clone claude-code reference tree
+        run: |
+          git clone --depth 1 --single-branch \
+            https://github.com/anthropics/claude-code.git \
+            claude-code
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
