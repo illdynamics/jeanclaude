@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# ── JeanClaude launcher ──────────────────────────────────────────────────
+# Drop this at the repo root.  It learns its own location so it works
+# whether you call it as ./jeanclaude or ~/bin/jeanclaude.
+#
+# Subcommands:
+#   build     Build the Docker/Podman image locally
+#   install   Install jeanclaude into ~/.config/jeanclaude + ~/bin/jeanclaude
+#   help      Show this help
+#
+# Everything else is forwarded to the standalone wrapper (direct mode) or
+# the Docker Compose runner (container mode), whichever is appropriate.
+# ─────────────────────────────────────────────────────────────────────────
+
+log() {
+  printf '[jeanclaude] %s\n' "$*" >&2
+}
+
+warn() {
+  printf '[jeanclaude:warn] %s\n' "$*" >&2
+}
+
+die() {
+  printf '[jeanclaude:error] %s\n' "$*" >&2
+  exit 1
+}
+
+is_truthy() {
+  case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+    1|true|yes|on) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# ── resolve our own location (follow symlinks) ──────────────────────────
+resolve_self_path() {
+  local source="$1"
+  while [[ -h "$source" ]]; do
+    local dir
+    dir="$(cd -P "$(dirname "$source")" && pwd)"
+    source="$(readlink "$source")"
+    [[ "$source" == /* ]] || source="${dir}/${source}"
+  done
+  printf '%s\n' "$(cd -P "$(dirname "$source")" && pwd)/$(basename "$source")"
+}
+
+SELF_PATH="$(resolve_self_path "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd -P "$(dirname "$SELF_PATH")" && pwd)"
+
+# ── configurable paths (environment overridable) ────────────────────────
+: "${JEANCLAUDE_INSTALL_ROOT:=$SCRIPT_DIR}"
+: "${JEANCLAUDE_IMAGE:=jeanclaude:dev}"
+: "${JEANCLAUDE_BUILD_CONTEXT:=$JEANCLAUDE_INSTALL_ROOT}"
+: "${JEANCLAUDE_AUTO_BUILD:=true}"
+
+# ── container detection ─────────────────────────────────────────────────
+detect_container() {
+  if [[ -n "${CONTAINER:-}" ]]; then
+    case "$CONTAINER" in
+      podman|docker) ;;
+      *) die "unsupported container runtime: ${CONTAINER}. Use CONTAINER=podman or CONTAINER=docker." ;;
+    esac
+    command -v "$CONTAINER" >/dev/null 2>&1 || die "container runtime not found: ${CONTAINER}"
+    printf '%s\n' "$CONTAINER"
+    return 0
+  fi
+
+  if command -v podman >/dev/null 2>&1; then
+    printf '%s\n' podman
+    return 0
+  fi
+
+  if command -v docker >/dev/null 2>&1; then
+    warn "podman not found; using docker as compatible fallback"
+    printf '%s\n' docker
+    return 0
+  fi
+
+  die "no container runtime found. Install Podman (preferred) or Docker, or set CONTAINER=podman|docker."
+}
+
+ensure_container_runtime() {
+  if [[ -n "${CONTAINER:-}" ]]; then
+    return 0
+  fi
+  CONTAINER="$(detect_container)"
+}
+
+image_exists() {
+  if [[ "$CONTAINER" == "podman" ]]; then
+    "$CONTAINER" image exists "$JEANCLAUDE_IMAGE" >/dev/null 2>&1
+  else
+    "$CONTAINER" image inspect "$JEANCLAUDE_IMAGE" >/dev/null 2>&1
+  fi
+}
+
+ensure_image() {
+  if image_exists; then
+    return 0
+  fi
+  if is_truthy "$JEANCLAUDE_AUTO_BUILD"; then
+    log "image ${JEANCLAUDE_IMAGE} not found; building from ${JEANCLAUDE_BUILD_CONTEXT} with ${CONTAINER}"
+    "$CONTAINER" build -t "$JEANCLAUDE_IMAGE" "$JEANCLAUDE_BUILD_CONTEXT"
+  else
+    die "image ${JEANCLAUDE_IMAGE} missing; run: ./jeanclaude build"
+  fi
+}
+
+# ── subcommands ─────────────────────────────────────────────────────────
+cmd_build() {
+  local CONTAINER
+  CONTAINER="$(detect_container)"
+  log "building ${JEANCLAUDE_IMAGE} with ${CONTAINER} from ${JEANCLAUDE_BUILD_CONTEXT} ..."
+  "$CONTAINER" build -t "$JEANCLAUDE_IMAGE" "$@" "$JEANCLAUDE_BUILD_CONTEXT"
+  log "build complete: ${JEANCLAUDE_IMAGE}"
+}
+
+cmd_install() {
+  local installer="${JEANCLAUDE_INSTALL_ROOT}/scripts/install.sh"
+  [[ -x "$installer" ]] || die "installer not found or not executable: $installer"
+  shift
+  exec "$installer" "$@"
+}
+
+cmd_help() {
+  cat <<HELP
+Usage:
+  ./jeanclaude build                 Build the Docker/Podman image locally
+  ./jeanclaude install               Install into ~/.config/jeanclaude + ~/bin/jeanclaude
+  ./jeanclaude help                  Show this help
+  ./jeanclaude [args...]             Run jeanclaude (forwarded to standalone wrapper)
+
+The build command auto-detects docker or podman (podman preferred).
+Install auto-builds the image if it hasn't been built yet.
+After install, you can run 'jeanclaude' directly from anywhere.
+
+Environment:
+  JEANCLAUDE_IMAGE          Image name (default: jeanclaude:dev)
+  JEANCLAUDE_BUILD_CONTEXT  Build context directory (default: repo root)
+  JEANCLAUDE_AUTO_BUILD     Auto-build on install (default: true)
+  CONTAINER                 Force podman or docker
+HELP
+}
+
+# ── main dispatch ───────────────────────────────────────────────────────
+case "${1:-}" in
+  build)
+    shift
+    cmd_build "$@"
+    ;;
+  install)
+    cmd_install "$@"
+    ;;
+  help|--help|-h)
+    cmd_help
+    ;;
+  *)
+    # Forward everything else to the standalone wrapper (direct mode).
+    # If standalone doesn't exist, fall back to Docker Compose runner.
+    standalone="${JEANCLAUDE_INSTALL_ROOT}/bin/jeanclaude-standalone"
+    compose_runner="${JEANCLAUDE_INSTALL_ROOT}/bin/jeanclaude"
+
+    if [[ -x "$standalone" ]]; then
+      exec "$standalone" "$@"
+    fi
+
+    # Fallback: try compiled JS
+    if [[ -f "${JEANCLAUDE_INSTALL_ROOT}/bin/jeanclaude-standalone.js" ]]; then
+      exec node "${JEANCLAUDE_INSTALL_ROOT}/bin/jeanclaude-standalone.js" "$@"
+    fi
+
+    # Last resort: Docker Compose runner
+    if [[ -x "$compose_runner" ]]; then
+      exec "$compose_runner" "$@"
+    fi
+
+    die "no jeanclaude runtime found. Run './jeanclaude install' first, or set JEANCLAUDE_CLAUDE_BIN."
+    ;;
+esac
