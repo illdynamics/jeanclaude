@@ -1,14 +1,49 @@
 # JeanClaude
 
-**JeanClaude is an independent wrapper around Claude Code.** JeanClaude does not modify or redistribute Claude Code. Claude Code is installed separately or as an external dependency. Claude and Claude Code are trademarks/products of Anthropic. **This project is not affiliated with, endorsed by, or sponsored by Anthropic.**
-
-JeanClaude authenticates Claude Code through DeepSeek's Anthropic-compatible endpoint using `DEEPSEEK_API_KEY`. It routes Claude Code to `https://api.deepseek.com/anthropic` and adds a local MCP tool sidecar for web search, document processing, and Open Responses synthesis — optionally all inside Docker.
+**Production-grade Gemini CLI drop-in replacement routing to DeepSeek V4 models.**
+Run demoni instead of gemini. Same flags, same interactive behavior, same tool calls. But your prompts go to DeepSeek V4 models via your DEEPSEEK_API_KEY — no Google account needed.
 
 <p align="center">
   <img src="./jeanclaude.jpg" alt="JeanClaude" width="80%">
 </p>
 
-Current version: v0.2.1
+Current version: `0.2.1` (from [`VERSION`](./VERSION)).
+
+Release notes: [`RELEASE-NOTES.md`](./RELEASE-NOTES.md)
+
+## Quickstart
+
+### Option 1: curl one-liner (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/illdynamics/jeanclaude/main/scripts/install.sh | bash
+```
+
+This downloads the latest release zip, extracts it, and runs `./jeanclaude install`
+which copies jeanclaude to `~/.config/jeanclaude`, creates a `~/bin/jeanclaude`
+launcher, and builds the Docker/Podman image.  After install, `jeanclaude` works
+from anywhere (if `~/bin` is on your `PATH`).
+
+### Option 2: git clone
+
+```bash
+git clone https://github.com/illdynamics/jeanclaude.git
+cd jeanclaude
+./jeanclaude install
+```
+
+### Running JeanClaude
+
+```bash
+# Set your DeepSeek API key (required)
+export DEEPSEEK_API_KEY="sk-your-deepseek-key"
+
+# Run Claude Code via JeanClaude
+jeanclaude -Y "explain this repo"
+
+# Print version
+jeanclaude --version
+
 
 ## Architecture
 
@@ -85,27 +120,6 @@ jeanclaude --jeanclaude-mode auto -p "adapt to environment"
 ```
 
 See [`docs/execution-modes.md`](./docs/execution-modes.md) for the full mode guide.
-
-## Quickstart
-
-### Option 1: curl one-liner (recommended)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/illdynamics/jeanclaude/main/scripts/install.sh | bash
-```
-
-This downloads the latest release zip, extracts it, and runs `./jeanclaude install`
-which copies jeanclaude to `~/.config/jeanclaude`, creates a `~/bin/jeanclaude`
-launcher, and builds the Docker/Podman image.  After install, `jeanclaude` works
-from anywhere (if `~/bin` is on your `PATH`).
-
-### Option 2: git clone
-
-```bash
-git clone https://github.com/illdynamics/jeanclaude.git
-cd jeanclaude
-./jeanclaude install
-```
 
 ### Running JeanClaude
 
