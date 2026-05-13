@@ -8,7 +8,8 @@ x-open-responses-shared-env: &open-responses-shared-env
   BRAVE_API_KEY: ${BRAVE_API_KEY:-}
   RESPONSES_API_PORT: ${RESPONSES_API_PORT:-8080}
   MEMORY_STORE_PASSWORD: ${MEMORY_STORE_PASSWORD:-obviously_not_a_safe_password}
-  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  # ANTHROPIC_API_KEY intentionally absent from shared env in privacy lockdown.
+  # Only set if user explicitly opts out of privacy lockdown.
   DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
   OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -23,14 +24,11 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        CLAUDE_CODE_NPM_VERSION: ${CLAUDE_CODE_NPM_VERSION:-latest}
+        CLAUDE_CODE_NPM_VERSION: ${CLAUDE_CODE_NPM_VERSION:-1.0.58}
     image: jeanclaude:dev
     environment:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       JEANCLAUDE_MODEL_PROFILE: ${JEANCLAUDE_MODEL_PROFILE:-v4-pro-thinking}
-      JEANCLAUDE_MODEL: ${JEANCLAUDE_MODEL:-deepseek-v4-flash}
-      JEANCLAUDE_PRO_MODEL: ${JEANCLAUDE_PRO_MODEL:-deepseek-v4-pro}
-      JEANCLAUDE_SMALL_MODEL: ${JEANCLAUDE_SMALL_MODEL:-}
       JEANCLAUDE_MODE: ${JEANCLAUDE_MODE:-direct}
       JEANCLAUDE_THINKING: ${JEANCLAUDE_THINKING:-disabled}
       JEANCLAUDE_REASONING_EFFORT: ${JEANCLAUDE_REASONING_EFFORT:-high}
@@ -40,7 +38,7 @@ services:
       RESPONSE_API_KEY: ${RESPONSE_API_KEY:-jrsp-local-dev-key}
       JEANCLAUDE_WEB_SEARCH: ${JEANCLAUDE_WEB_SEARCH:-off}
       JEANCLAUDE_DOCUMENTS: ${JEANCLAUDE_DOCUMENTS:-off}
-      JEANCLAUDE_DOCUMENT_STORE: ${JEANCLAUDE_DOCUMENT_STORE:-/workspace/.jeanclaude/documents}
+      JEANCLAUDE_DOCUMENT_STORE: ${JEANCLAUDE_DOCUMENT_STORE_EPHEMERAL:-/tmp/jeanclaude-documents}
       BRAVE_API_KEY: ${BRAVE_API_KEY:-}
       UNSTRUCTURED_API_KEY: ${UNSTRUCTURED_API_KEY:-}
       UNSTRUCTURED_API_URL: ${UNSTRUCTURED_API_URL:-https://api.unstructuredapp.io/general/v0/general}
@@ -53,17 +51,25 @@ services:
       JEANCLAUDE_GATEWAY_PORT: ${JEANCLAUDE_GATEWAY_PORT:-auto}
       JEANCLAUDE_GATEWAY_URL: ${JEANCLAUDE_GATEWAY_URL:-}
       JEANCLAUDE_GATEWAY_KEEPALIVE: ${JEANCLAUDE_GATEWAY_KEEPALIVE:-0}
+      JEANCLAUDE_PRIVACY_LOCKDOWN: ${JEANCLAUDE_PRIVACY_LOCKDOWN:-1}
+      JEANCLAUDE_EPHEMERAL_HOME: ${JEANCLAUDE_EPHEMERAL_HOME:-1}
+      JEANCLAUDE_DISABLE_UPDATES: ${JEANCLAUDE_DISABLE_UPDATES:-1}
+      JEANCLAUDE_DISABLE_ANTHROPIC_EGRESS: ${JEANCLAUDE_DISABLE_ANTHROPIC_EGRESS:-1}
+      JEANCLAUDE_DISABLE_GATEWAY_LOG_FILE: ${JEANCLAUDE_DISABLE_GATEWAY_LOG_FILE:-1}
+      JEANCLAUDE_GATEWAY_LOG_LEVEL: ${JEANCLAUDE_GATEWAY_LOG_LEVEL:-error}
       HOST_UID: ${HOST_UID:-1000}
       HOST_GID: ${HOST_GID:-1000}
     volumes:
       - .:/workspace
-      - jeanclaude-home:/home/jeanclaude
+      # No persistent jeanclaude-home volume in privacy lockdown.
+      # HOME is set to ephemeral tmpfs by the entrypoint.
+      - jeanclaude-tmp:/tmp
     working_dir: /workspace
     stdin_open: true
     tty: true
 
   open-responses:
-    image: ${OPEN_RESPONSES_IMAGE:-julepai/agents-api:${OPEN_RESPONSES_TAG:-responses-latest}}
+    image: ${OPEN_RESPONSES_IMAGE:-julepai/agents-api:${OPEN_RESPONSES_TAG:-0.5.3}}
     environment:
       <<: *open-responses-shared-env
     ports:
@@ -75,7 +81,7 @@ services:
         condition: service_started
 
   open-responses-integrations:
-    image: ${OPEN_RESPONSES_INTEGRATIONS_IMAGE:-julepai/integrations:${OPEN_RESPONSES_TAG:-responses-latest}}
+    image: ${OPEN_RESPONSES_INTEGRATIONS_IMAGE:-julepai/integrations:${OPEN_RESPONSES_TAG:-0.5.3}}
     environment:
       <<: *open-responses-shared-env
 
@@ -92,7 +98,7 @@ services:
       retries: 12
 
   open-responses-vectorizer-worker:
-    image: timescale/pgai-vectorizer-worker:latest
+    image: timescale/pgai-vectorizer-worker:0.4.1
     environment:
       PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:${MEMORY_STORE_PASSWORD:-obviously_not_a_safe_password}@open-responses-db:5432/postgres
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -112,5 +118,9 @@ services:
         condition: service_healthy
 
 volumes:
-  jeanclaude-home:
+  jeanclaude-tmp:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
   open-responses-db-data:

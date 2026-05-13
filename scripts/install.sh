@@ -4,11 +4,19 @@
 #
 # Downloads the latest release zip (versioned), extracts it, and runs install.
 # Version is resolved from the latest GitHub tag matching v*.
+#
+# Privacy: When JEANCLAUDE_DISABLE_UPDATES=1, this script exits without
+# resolving latest or downloading anything.
 # ─────────────────────────────────────────────────────────────────────────
 set -Eeuo pipefail
 
 log()  { printf '[jeanclaude-install] %s\n' "$*" >&2; }
 die()  { printf '[jeanclaude-install:error] %s\n' "$*" >&2; exit 1; }
+
+# ── Respect privacy lockdown: refuse to resolve latest ──────────────────
+if [[ "${JEANCLAUDE_DISABLE_UPDATES:-}" == "1" ]] || [[ "${JEANCLAUDE_PRIVACY_LOCKDOWN:-1}" == "1" ]]; then
+  die "Auto-updates are disabled (JEANCLAUDE_DISABLE_UPDATES=1 or JEANCLAUDE_PRIVACY_LOCKDOWN=1). Use git clone instead: git clone https://github.com/illdynamics/jeanclaude.git && cd jeanclaude && ./jeanclaude install"
+fi
 
 REPO="illdynamics/jeanclaude"
 TMPDIR="${TMPDIR:-/tmp}/jeanclaude-install-$$"

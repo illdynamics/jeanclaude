@@ -8,7 +8,7 @@ x-open-responses-shared-env: &open-responses-shared-env
   BRAVE_API_KEY: ${BRAVE_API_KEY:-}
   RESPONSES_API_PORT: ${RESPONSES_API_PORT:-8080}
   MEMORY_STORE_PASSWORD: ${MEMORY_STORE_PASSWORD:-obviously_not_a_safe_password}
-  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  # ANTHROPIC_API_KEY intentionally absent in privacy lockdown.
   DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
   OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -19,7 +19,7 @@ x-open-responses-shared-env: &open-responses-shared-env
 
 services:
   open-responses:
-    image: ${OPEN_RESPONSES_IMAGE:-julepai/agents-api:${OPEN_RESPONSES_TAG:-responses-latest}}
+    image: ${OPEN_RESPONSES_IMAGE:-julepai/agents-api:${OPEN_RESPONSES_TAG:-0.5.3}}
     environment:
       <<: *open-responses-shared-env
     ports:
@@ -33,7 +33,7 @@ services:
         condition: service_completed_successfully
 
   open-responses-integrations:
-    image: ${OPEN_RESPONSES_INTEGRATIONS_IMAGE:-julepai/integrations:${OPEN_RESPONSES_TAG:-responses-latest}}
+    image: ${OPEN_RESPONSES_INTEGRATIONS_IMAGE:-julepai/integrations:${OPEN_RESPONSES_TAG:-0.5.3}}
     environment:
       <<: *open-responses-shared-env
 
@@ -50,7 +50,7 @@ services:
       retries: 12
 
   open-responses-vectorizer-worker:
-    image: timescale/pgai-vectorizer-worker:latest
+    image: timescale/pgai-vectorizer-worker:0.4.1
     environment:
       PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:${MEMORY_STORE_PASSWORD:-obviously_not_a_safe_password}@open-responses-db:5432/postgres
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -60,7 +60,7 @@ services:
         condition: service_healthy
 
   open-responses-migration:
-    image: julepai/memory-store-migrations:latest
+    image: julepai/memory-store-migrations:0.5.3
     command: ["-path", "/migrations", "-database", "postgres://postgres:${MEMORY_STORE_PASSWORD:-obviously_not_a_safe_password}@open-responses-db:5432/postgres?sslmode=disable", "up"]
     restart: "no"
     depends_on:

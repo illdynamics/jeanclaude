@@ -59,6 +59,7 @@ function runWrapper(args, opts = {}) {
       ANTHROPIC_DEFAULT_HAIKU_MODEL: undefined,
       CLAUDE_CODE_EFFORT_LEVEL: undefined,
       CLAUDE_CODE_DISABLE_THINKING: undefined,
+      JEANCLAUDE_NO_AUTO_SESSION_FLAGS: '1',  // Don't auto-append --no-session-persistence in tests
       ...opts.env,
     };
 
@@ -1024,20 +1025,21 @@ function stopFakeGatewayInline(gw) {
 
 // ---- Direct mode auth tests ----
 
-// 62. Parent ANTHROPIC_BASE_URL is overridden to DeepSeek URL in child env
-it('62. parent ANTHROPIC_BASE_URL is overridden to DeepSeek URL in child env', async () => {
-  const { fakeOutput } = await runWrapper(['-p', 'test'], {
+// 62. Parent ANTHROPIC_BASE_URL=https://api.anthropic.com causes privacy abort
+it('62. parent ANTHROPIC_BASE_URL=https://api.anthropic.com causes privacy abort', async () => {
+  // Privacy lockdown now correctly aborts when it sees anthropic.com URLs
+  const { exitCode, stderr, fakeOutput } = await runWrapper(['-p', 'test'], {
     env: {
       ANTHROPIC_BASE_URL: 'https://api.anthropic.com',
       JEANCLAUDE_ANTHROPIC_BASE_URL: undefined,
     },
   });
-  assert.ok(fakeOutput);
-  assert.strictEqual(
-    fakeOutput.env.ANTHROPIC_BASE_URL,
-    'https://api.deepseek.com/anthropic',
-    'parent ANTHROPIC_BASE_URL should be overridden to DeepSeek URL',
+  assert.ok(exitCode !== 0, 'should abort with non-zero exit code');
+  assert.ok(
+    stderr.includes('PRIVACY VIOLATION') || stderr.includes('Aborting'),
+    'should report privacy violation for Anthropic URL',
   );
+  assert.strictEqual(fakeOutput, null, 'should NOT invoke claude');
 });
 
 // 63. Parent ANTHROPIC_BASE_URL=http://evil.local is overridden
@@ -1073,22 +1075,22 @@ it('64. JEANCLAUDE_ANTHROPIC_BASE_URL customizes direct mode base URL', async ()
   );
 });
 
-// 65. Direct mode always points to DeepSeek (no parent ANTHROPIC_BASE_URL leakage)
-it('65. direct mode always points to DeepSeek (no parent URL leakage)', async () => {
-  // Set ANTHROPIC_BASE_URL in parent, but also set JEANCLAUDE_MODE=direct explicitly
-  const { fakeOutput } = await runWrapper(['-p', 'test'], {
+// 65. Direct mode with parent ANTHROPIC_BASE_URL=anthropic.com aborts (privacy lockdown)
+it('65. direct mode with parent anthropic URL aborts in privacy lockdown', async () => {
+  // Privacy lockdown correctly aborts when ANTHROPIC_BASE_URL points to Anthropic
+  const { exitCode, stderr, fakeOutput } = await runWrapper(['-p', 'test'], {
     env: {
       ANTHROPIC_BASE_URL: 'https://api.anthropic.com/v1',
       JEANCLAUDE_MODE: 'direct',
       JEANCLAUDE_ANTHROPIC_BASE_URL: undefined,
     },
   });
-  assert.ok(fakeOutput);
-  assert.strictEqual(
-    fakeOutput.env.ANTHROPIC_BASE_URL,
-    'https://api.deepseek.com/anthropic',
-    'direct mode should always use DeepSeek URL regardless of parent ANTHROPIC_BASE_URL',
+  assert.ok(exitCode !== 0, 'should abort with non-zero exit code');
+  assert.ok(
+    stderr.includes('PRIVACY VIOLATION') || stderr.includes('Aborting'),
+    'should report privacy violation',
   );
+  assert.strictEqual(fakeOutput, null, 'should NOT invoke claude');
 });
 
 // 66. Parent ANTHROPIC_API_KEY is stripped from child env (extended check)

@@ -276,6 +276,65 @@ if $RELEASE_MODE; then
 fi
 
 # ---------------------------------------------------------------------------
+
+# 15. Privacy lockdown static checks ────────────────────────────────────────
+# ---------------------------------------------------------------------------
+note "running privacy lockdown static checks"
+
+# 15a. No api.anthropic.com in runtime source files
+note "checking for api.anthropic.com in runtime files"
+an_api_hits="$(grep -rl 'api\.anthropic\.com' bin/ config/ scripts/ gateway/ jeanclaude Dockerfile Makefile docker-compose.yml docker-compose.open-responses.yml 2>/dev/null || true)"
+if [[ -n "$an_api_hits" ]]; then
+  while IFS= read -r f; do
+    fail "found api.anthropic.com in runtime file: $f"
+  done <<<"$an_api_hits"
+else
+  note "no api.anthropic.com in runtime files (good)"
+fi
+
+# 15b. No claude.ai in runtime source files
+note "checking for claude.ai in runtime files"
+claude_ai_hits="$(grep -rl 'claude\.ai' bin/ config/ scripts/ gateway/ jeanclaude Dockerfile Makefile docker-compose.yml docker-compose.open-responses.yml 2>/dev/null || true)"
+if [[ -n "$claude_ai_hits" ]]; then
+  while IFS= read -r f; do
+    fail "found claude.ai in runtime file: $f"
+  done <<<"$claude_ai_hits"
+else
+  note "no claude.ai in runtime files (good)"
+fi
+
+# 15c. Verify privacy env vars are in runtime files
+note "checking privacy env vars in runtime files"
+for var in "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC" "DISABLE_TELEMETRY" "DISABLE_UPDATES" "CLAUDE_CODE_SKIP_PROMPT_HISTORY"; do
+  found=false
+  for f in bin/jeanclaude-standalone.ts bin/jeanclaude-entrypoint Dockerfile .env.example config/managed-settings.template.json; do
+    if grep -q "$var" "$f" 2>/dev/null; then
+      found=true
+      break
+    fi
+  done
+  if ! $found; then
+    fail "privacy env var $var not found in any runtime file"
+  fi
+done
+note "all key privacy env vars present in runtime files"
+
+# 15d. No 'latest' in CLAUDE_CODE_NPM_VERSION in Dockerfile or .env.example
+note "checking CLAUDE_CODE_NPM_VERSION is not 'latest'"
+if grep -q 'CLAUDE_CODE_NPM_VERSION.*=.*latest' Dockerfile .env.example 2>/dev/null; then
+  fail "CLAUDE_CODE_NPM_VERSION=latest found in Dockerfile or .env.example"
+else
+  note "CLAUDE_CODE_NPM_VERSION is pinned (good)"
+fi
+
+# 15e. Verify managed-settings.template.json is valid JSON
+note "validating managed-settings.template.json"
+if ! python3 -c "import json; json.load(open('config/managed-settings.template.json'))" 2>/dev/null; then
+  fail "config/managed-settings.template.json is not valid JSON"
+else
+  note "managed-settings.template.json is valid JSON (good)"
+fi
+
 # Summary
 # ---------------------------------------------------------------------------
 if (( failures > 0 )); then
@@ -292,3 +351,5 @@ if $RELEASE_MODE; then
 else
   note "all checks passed"
 fi
+
+# ---------------------------------------------------------------------------
