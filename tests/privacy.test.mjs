@@ -125,9 +125,9 @@ describe('Privacy Lockdown', () => {
     assert.strictEqual(fakeOutput.env.DISABLE_ERROR_REPORTING, '1');
     assert.strictEqual(fakeOutput.env.ENABLE_CLAUDEAI_MCP_SERVERS, 'false');
     assert.strictEqual(fakeOutput.env.CLAUDE_CODE_SKIP_PROMPT_HISTORY, '1');
-    assert.strictEqual(fakeOutput.env.OTEL_METRICS_EXPORTER, 'none');
-    assert.strictEqual(fakeOutput.env.OTEL_LOGS_EXPORTER, 'none');
-    assert.strictEqual(fakeOutput.env.OTEL_TRACES_EXPORTER, 'none');
+    assert.strictEqual(fakeOutput.env.OTEL_METRICS_EXPORTER, undefined);
+    assert.strictEqual(fakeOutput.env.OTEL_LOGS_EXPORTER, undefined);
+    assert.strictEqual(fakeOutput.env.OTEL_TRACES_EXPORTER, undefined);
   });
 
   // --- 2. ANTHROPIC_BASE_URL to anthropic.com causes abort ---
@@ -208,13 +208,13 @@ describe('Privacy Lockdown', () => {
     assert.strictEqual(fakeOutput.env.DISABLE_AUTOUPDATER, '1');
   });
 
-  // --- 10. OTEL exporters are all 'none' ---
-  it('10. all OTEL exporters are set to none', async () => {
+  // --- 10. OTEL exporters are deleted (claude-code compat) ---
+  it('10. all OTEL exporters are undefined (deleted for claude-code compat)', async () => {
     const { fakeOutput } = await runWrapper(['-p', 'test']);
     assert.ok(fakeOutput);
-    assert.strictEqual(fakeOutput.env.OTEL_METRICS_EXPORTER, 'none');
-    assert.strictEqual(fakeOutput.env.OTEL_LOGS_EXPORTER, 'none');
-    assert.strictEqual(fakeOutput.env.OTEL_TRACES_EXPORTER, 'none');
+    assert.strictEqual(fakeOutput.env.OTEL_METRICS_EXPORTER, undefined);
+    assert.strictEqual(fakeOutput.env.OTEL_LOGS_EXPORTER, undefined);
+    assert.strictEqual(fakeOutput.env.OTEL_TRACES_EXPORTER, undefined);
   });
 
   // --- 11. No secret leakage in stderr for API keys ---
