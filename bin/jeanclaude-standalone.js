@@ -224,6 +224,9 @@ function applyPrivacyEnv() {
       process.env[k] = v;
     }
   }
+  delete process.env.OTEL_EXPORTER_OTLP_PROTOCOL;
+  delete process.env.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL;
+  delete process.env.OTEL_EXPORTER_OTLP_LOGS_PROTOCOL;
 }
 function stripOAuthVars() {
   for (const v of CLAUDE_OAUTH_VARS) delete process.env[v];

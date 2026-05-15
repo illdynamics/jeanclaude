@@ -199,6 +199,12 @@ function applyPrivacyEnv(): void {
       process.env[k] = v;
     }
   }
+  // Unset OTLP protocol env vars to prevent claude-code v1.0.58 from crashing
+  // when the host environment (e.g. GitHub Actions runner) sets them to unknown
+  // values like "none". claude-code parses these when OTEL_METRICS_EXPORTER=otlp.
+  delete process.env.OTEL_EXPORTER_OTLP_PROTOCOL;
+  delete process.env.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL;
+  delete process.env.OTEL_EXPORTER_OTLP_LOGS_PROTOCOL;
 }
 
 /** Strip all Anthropic OAuth/session vars. */
