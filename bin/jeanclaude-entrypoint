@@ -98,13 +98,10 @@ if is_truthy "${JEANCLAUDE_PRIVACY_LOCKDOWN:-1}"; then
   export OTEL_LOG_RAW_API_BODIES="${OTEL_LOG_RAW_API_BODIES:-0}"
   export OTEL_LOG_TOOL_CONTENT="${OTEL_LOG_TOOL_CONTENT:-0}"
   export OTEL_LOG_TOOL_DETAILS="${OTEL_LOG_TOOL_DETAILS:-0}"
-  export OTEL_METRICS_EXPORTER="${OTEL_METRICS_EXPORTER:-none}"
-  export OTEL_LOGS_EXPORTER="${OTEL_LOGS_EXPORTER:-none}"
-  export OTEL_TRACES_EXPORTER="${OTEL_TRACES_EXPORTER:-none}"
-  # Unset OTLP protocol env vars to prevent claude-code v1.0.58 from crashing
-  # when the host environment (e.g. GitHub Actions runner) sets them to unknown values.
-  # claude-code parses OTEL_EXPORTER_OTLP_PROTOCOL when OTEL_METRICS_EXPORTER=otlp
-  # and throws on unrecognized values like "none".
+  # Unset ALL OTEL exporter env vars to prevent claude-code v1.0.58 from crashing.
+  # claude-code crashes on unknown exporter types (like "none") and on unknown
+  # protocol values (like "none" set by GitHub Actions runners).
+  unset OTEL_METRICS_EXPORTER OTEL_LOGS_EXPORTER OTEL_TRACES_EXPORTER 2>/dev/null || true
   unset OTEL_EXPORTER_OTLP_PROTOCOL OTEL_EXPORTER_OTLP_METRICS_PROTOCOL OTEL_EXPORTER_OTLP_LOGS_PROTOCOL 2>/dev/null || true
   export npm_config_update_notifier="${npm_config_update_notifier:-false}"
   export NO_UPDATE_NOTIFIER="${NO_UPDATE_NOTIFIER:-1}"

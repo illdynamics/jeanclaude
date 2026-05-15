@@ -191,9 +191,7 @@ var PRIVACY_ENV_VARS = {
   OTEL_LOG_RAW_API_BODIES: "0",
   OTEL_LOG_TOOL_CONTENT: "0",
   OTEL_LOG_TOOL_DETAILS: "0",
-  OTEL_METRICS_EXPORTER: "none",
-  OTEL_LOGS_EXPORTER: "none",
-  OTEL_TRACES_EXPORTER: "none",
+  // OTEL exporters unset (claude-code v1.0.58 crashes on "none" value)
   npm_config_update_notifier: "false",
   NO_UPDATE_NOTIFIER: "1",
   NPM_CONFIG_AUDIT: "false",
@@ -224,6 +222,9 @@ function applyPrivacyEnv() {
       process.env[k] = v;
     }
   }
+  delete process.env.OTEL_METRICS_EXPORTER;
+  delete process.env.OTEL_LOGS_EXPORTER;
+  delete process.env.OTEL_TRACES_EXPORTER;
   delete process.env.OTEL_EXPORTER_OTLP_PROTOCOL;
   delete process.env.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL;
   delete process.env.OTEL_EXPORTER_OTLP_LOGS_PROTOCOL;

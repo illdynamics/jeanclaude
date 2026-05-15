@@ -158,9 +158,7 @@ const PRIVACY_ENV_VARS: Record<string, string> = {
   OTEL_LOG_RAW_API_BODIES: "0",
   OTEL_LOG_TOOL_CONTENT: "0",
   OTEL_LOG_TOOL_DETAILS: "0",
-  OTEL_METRICS_EXPORTER: "none",
-  OTEL_LOGS_EXPORTER: "none",
-  OTEL_TRACES_EXPORTER: "none",
+  // OTEL exporters unset (claude-code v1.0.58 crashes on "none" value)
   npm_config_update_notifier: "false",
   NO_UPDATE_NOTIFIER: "1",
   NPM_CONFIG_AUDIT: "false",
@@ -199,9 +197,12 @@ function applyPrivacyEnv(): void {
       process.env[k] = v;
     }
   }
-  // Unset OTLP protocol env vars to prevent claude-code v1.0.58 from crashing
-  // when the host environment (e.g. GitHub Actions runner) sets them to unknown
-  // values like "none". claude-code parses these when OTEL_METRICS_EXPORTER=otlp.
+  // Unset ALL OTEL exporter and protocol env vars to prevent claude-code v1.0.58
+  // from crashing. claude-code crashes on unknown exporter types (like "none") and
+  // unknown protocol values (like "none" set by GitHub Actions runners).
+  delete process.env.OTEL_METRICS_EXPORTER;
+  delete process.env.OTEL_LOGS_EXPORTER;
+  delete process.env.OTEL_TRACES_EXPORTER;
   delete process.env.OTEL_EXPORTER_OTLP_PROTOCOL;
   delete process.env.OTEL_EXPORTER_OTLP_METRICS_PROTOCOL;
   delete process.env.OTEL_EXPORTER_OTLP_LOGS_PROTOCOL;
