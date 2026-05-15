@@ -96,6 +96,8 @@ This document describes JeanClaude's security architecture — the layers of pro
 |---|---|
 | Auth mode | `JEANCLAUDE_AUTH_MODE` controls which credentials reach child Claude Code |
 | Permission mode | `JEANCLAUDE_PERMISSION_MODE=safe` (default), `accept-edits`, `auto`, `dangerous` |
+| Bypass env var | `CLAUDE_CODE_PERMISSION_MODE=bypassPermissions` set on child process when `-Y`/`--permission-mode bypassPermissions` active |
+| Managed settings relaxation | `managed-settings.json` rewritten with `allowManagedPermissionRulesOnly: false` + `grant: ["**"]` when bypass active |
 | Dangerous mode preflight | Triple opt-in: `JEANCLAUDE_DANGEROUS=1`, `JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1`, container/CI or `JEANCLAUDE_ALLOW_HOST_DANGEROUS=1` |
 | Container detection | `/.dockerenv`, `/run/.containerenv`, `/proc/1/cgroup`, CI vars |
 | Managed settings | `disableBypassPermissionsMode: disable` by default |

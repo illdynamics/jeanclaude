@@ -60,9 +60,28 @@ JEANCLAUDE_ALLOW_HOST_DANGEROUS=1 \
 jeanclaude -p "I know what I'm doing"
 ```
 
-## How to Enable It (Legacy)
+## How It Works Internally (v0.2.3+)
+
+When `-Y`/`--yolo` is used, JeanClaude now does **three things** to ensure permissions are fully bypassed:
+
+1. **Adds `--dangerously-skip-permissions`** to the Claude Code CLI args (existing behavior)
+2. **Sets `CLAUDE_CODE_PERMISSION_MODE=bypassPermissions`** as a child-process environment variable — Claude Code respects this at the environment level
+3. **Relaxes `managed-settings.json`** by setting `allowManagedPermissionRulesOnly: false` and `permissions: { grant: ["**"] }` — this prevents Claude Code's managed permission rules from overriding the bypass flag
+
+This triple enforcement ensures that even with Claude Code v2.1.x's managed settings system, permissions are fully bypassed.
 
 ### Via Claude Code Passthrough
+
+```bash
+# Dangerous mode — auto-approve everything (old method: passthrough)
+jeanclaude claude --yolo -p "refactor all TypeScript files"
+
+# Short form — JeanClaude intercepts and handles everything
+jeanclaude -Y "deploy to staging"
+
+# Dangerous mode with specific profile
+jeanclaude -Y --profile v4-pro -p "migrate the database schema"
+```
 
 ```bash
 # Dangerous mode — auto-approve everything
@@ -96,29 +115,16 @@ JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1
 # plus container/CI or JEANCLAUDE_ALLOW_HOST_DANGEROUS=1
 ```
 
-### Via Managed Settings
+### Managed Settings (v0.2.3+)
 
-By default, JeanClaude's managed settings disable dangerous mode entirely:
+JeanClaude v0.2.3+ **automatically relaxes managed settings** when `-Y`/`--yolo` is used. The `rewriteManagedSettingsForYolo()` function rewrites `managed-settings.json` at runtime:
 
-```json
-{
-  "permissions": {
-    "disableBypassPermissionsMode": "disable"
-  }
-}
-```
+- `allowManagedPermissionRulesOnly` → `false`
+- `permissions` → `{ grant: ["**"] }`
 
-This means even `--yolo` won't bypass permissions at the Claude Code level. To allow dangerous mode, you must change this to:
+This means you **no longer need to manually edit managed settings** to use dangerous mode — JeanClaude handles it for you.
 
-```json
-{
-  "permissions": {
-    "disableBypassPermissionsMode": "allow"
-  }
-}
-```
-
-Edit `config/managed-settings.template.json` and rebuild the image, or modify the generated settings at runtime.
+If you want to manually override this behavior, you can pre-write your own `managed-settings.json` at `$CLAUDE_CONFIG_DIR/managed-settings.json` before launching JeanClaude. The runtime rewrite only affects the current session.
 
 ## What Dangerous Mode Does NOT Do
 
@@ -251,14 +257,14 @@ JeanClaude's permission model has three layers:
 
 ### Interaction Matrix
 
-| JeanClaude Mode | `--yolo` Flag | Result |
-|---|---|---|
-| `safe` (default) | No | Prompts for each tool |
-| `safe` (default) | Yes | Auto-approves all tools (legacy) |
-| `accept-edits` | No | Auto-approves edits, prompts for bash/network |
-| `auto` | No | Auto-approves safe operations |
-| `dangerous` | No | Auto-approves all tools (preflight required) |
-| `bypassPermissions` | No | Auto-approves all tools |
+| JeanClaude Mode | `--yolo` Flag | Result | Env Var |
+|---|---|---|---|
+| `safe` (default) | No | Prompts for each tool | — |
+| `safe` (default) | Yes | Auto-approves all tools, managed settings relaxed | `CLAUDE_CODE_PERMISSION_MODE=bypassPermissions` |
+| `accept-edits` | No | Auto-approves edits, prompts for bash/network | — |
+| `auto` | No | Auto-approves safe operations | — |
+| `dangerous` | No | Auto-approves all tools (preflight required) | depends |
+| `bypassPermissions` | No | Auto-approves all tools, managed settings relaxed | `CLAUDE_CODE_PERMISSION_MODE=bypassPermissions` |
 
 ## Warning Signs
 

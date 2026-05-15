@@ -5,7 +5,7 @@ All notable changes to JeanClaude will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.3] — 2026-05-14
+## [0.2.3] — 2026-05-15
 
 ### Added
 - Auth mode selection: `JEANCLAUDE_AUTH_MODE` env var and `--auth` CLI flag (`subscription`, `api-key`, `oauth-token`, `auth-token`, `auto`)
@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auth mode deletions apply after CRITICAL_ENV merge (no longer overridden)
 - `--permission-mode` + `--yolo` conflict detection works after flag interception
 - `--permission-mode bypassPermissions` properly passed through to Claude Code with `--yolo`
+- `-Y`/`--yolo` now rewrites `managed-settings.json` to relax managed permission rules when bypassing
+- `CLAUDE_CODE_PERMISSION_MODE=bypassPermissions` env var set for child process alongside `--dangerously-skip-permissions` flag
 
 ## [0.2.1] — 2026-05-12
 

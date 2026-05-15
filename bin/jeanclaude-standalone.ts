@@ -433,6 +433,28 @@ function generateManagedSettings(configDir: string): void {
   }
 }
 
+
+
+/** Regenerate managed-settings.json to allow all permissions (for -Y/--yolo mode). */
+function rewriteManagedSettingsForYolo(): void {
+  const configDir = process.env.CLAUDE_CONFIG_DIR ?? getJeanclaudeConfigDir();
+  const msp = resolve(configDir, "managed-settings.json");
+  try {
+    const raw = readFileSync(msp, "utf-8");
+    const settings = JSON.parse(raw);
+    settings.allowManagedPermissionRulesOnly = false;
+    settings.permissions = { grant: ["**"] };
+    writeFileSync(msp, JSON.stringify(settings, null, 2), { mode: 0o600 });
+    if (process.env.JEANCLAUDE_QUIET !== "1") {
+      process.stderr.write("jeanclaude: managed settings relaxed for -Y dangerous mode\n");
+    }
+  } catch (e: any) {
+    if (process.env.JEANCLAUDE_QUIET !== "1") {
+      process.stderr.write("jeanclaude: could not rewrite managed settings for -Y: " + (e?.message ?? e) + "\n");
+    }
+  }
+}
+
 /** Validate a managed-settings.json file is valid JSON. */
 function validateManagedSettings(path: string): boolean {
   try {
@@ -1617,6 +1639,7 @@ function runClaude(opts: RunClaudeOptions): void {
     "ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL", "CLAUDE_CODE_SUBAGENT_MODEL",
     "CLAUDE_CODE_EFFORT_LEVEL", "CLAUDE_CODE_DISABLE_THINKING",
+    "CLAUDE_CODE_PERMISSION_MODE",
     "DEEPSEEK_API_KEY", "JEANCLAUDE_MODEL_PROFILE",
     "HOME", "CLAUDE_CONFIG_DIR", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME",
   ];
@@ -2016,6 +2039,8 @@ async function main(): Promise<void> {
       }
     }
 
+    process.env.CLAUDE_CODE_PERMISSION_MODE = "bypassPermissions";
+    rewriteManagedSettingsForYolo();
     if (process.env.JEANCLAUDE_QUIET !== "1") {
       process.stderr.write(
         "JeanClaude dangerous mode enabled: Claude Code permission prompts are bypassed for this session.\n"
@@ -2051,6 +2076,8 @@ async function main(): Promise<void> {
         break;
       }
       case "bypassPermissions": {
+        process.env.CLAUDE_CODE_PERMISSION_MODE = "bypassPermissions";
+        rewriteManagedSettingsForYolo();
         // Backward-compat: explicit bypassPermissions mode
         passArgs.push("--permission-mode");
         passArgs.push("bypassPermissions");

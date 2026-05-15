@@ -160,6 +160,8 @@ jeanclaude --auth subscription -p "refactor this"
 | `dangerous` | `--dangerously-skip-permissions` — no prompts | Safety preflight (see below) |
 | `bypassPermissions` | Backward compat alias for `--permission-mode bypassPermissions` | Nothing |
 
+> **Note:** When `-Y`/`--yolo` or `--permission-mode bypassPermissions` is used, JeanClaude automatically relaxes `managed-settings.json` to remove permission restrictions (sets `allowManagedPermissionRulesOnly: false`, `permissions: { grant: ["**"] }`) and sets `CLAUDE_CODE_PERMISSION_MODE=bypassPermissions` as a child-process environment variable for redundant bypass enforcement.
+
 **Dangerous mode safety preflight** requires ALL of:
 1. `JEANCLAUDE_DANGEROUS=1` — explicit opt-in
 2. `JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1` — acknowledgement

@@ -395,6 +395,26 @@ function generateManagedSettings(configDir) {
     }
   }
 }
+
+function rewriteManagedSettingsForYolo() {
+  var configDir = process.env.CLAUDE_CONFIG_DIR || getJeanclaudeConfigDir();
+  var msp = resolve(configDir, "managed-settings.json");
+  try {
+    var raw = readFileSync2(msp, "utf-8");
+    var settings = JSON.parse(raw);
+    settings.allowManagedPermissionRulesOnly = false;
+    settings.permissions = { grant: ["**"] };
+    writeFileSync(msp, JSON.stringify(settings, null, 2), { mode: 384 });
+    if (process.env.JEANCLAUDE_QUIET !== "1") {
+      process.stderr.write("jeanclaude: managed settings relaxed for -Y dangerous mode\n");
+    }
+  } catch (e) {
+    if (process.env.JEANCLAUDE_QUIET !== "1") {
+      process.stderr.write("jeanclaude: could not rewrite managed settings for -Y: " + (e.message || e) + "\n");
+    }
+  }
+}
+
 function validateManagedSettings(path) {
   try {
     const raw = readFileSync2(path, "utf-8");
@@ -1423,6 +1443,7 @@ function runClaude(opts) {
     "CLAUDE_CODE_SUBAGENT_MODEL",
     "CLAUDE_CODE_EFFORT_LEVEL",
     "CLAUDE_CODE_DISABLE_THINKING",
+    "CLAUDE_CODE_PERMISSION_MODE",
     "DEEPSEEK_API_KEY",
     "JEANCLAUDE_MODEL_PROFILE",
     "HOME",
@@ -1773,6 +1794,8 @@ async function main() {
         passArgs.push("bypassPermissions");
       }
     }
+    process.env.CLAUDE_CODE_PERMISSION_MODE = "bypassPermissions";
+    rewriteManagedSettingsForYolo();
     if (process.env.JEANCLAUDE_QUIET !== "1") {
       process.stderr.write(
         "JeanClaude dangerous mode enabled: Claude Code permission prompts are bypassed for this session.\n"
@@ -1802,6 +1825,8 @@ async function main() {
         break;
       }
       case "bypassPermissions": {
+        process.env.CLAUDE_CODE_PERMISSION_MODE = "bypassPermissions";
+        rewriteManagedSettingsForYolo();
         passArgs.push("--permission-mode");
         passArgs.push("bypassPermissions");
         break;

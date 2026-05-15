@@ -1,6 +1,16 @@
 # JeanClaude Release Notes
 
-## v0.2.3 — 2026-05-14
+## v0.2.3 — 2026-05-15
+
+### Managed Settings Auto-Relaxation for Dangerous Mode
+- **`-Y`/`--yolo` now rewrites `managed-settings.json`** to set `allowManagedPermissionRulesOnly: false` and `permissions: { grant: ["**"] }`, ensuring Claude Code's managed permission rules don't conflict with the bypass
+- **`CLAUDE_CODE_PERMISSION_MODE=bypassPermissions`** set as child-process env var when `-Y`/`--yolo` or `--permission-mode bypassPermissions` is active — provides environment-level enforcement alongside the CLI flag
+- `CLAUDE_CODE_PERMISSION_MODE` added to `CRITICAL_ENV` propagation list so the env var always reaches the Claude Code child process
+- Same treatment for `--permission-mode bypassPermissions` (non-`-Y` path)
+
+### Bug Fixes
+- `-Y`/`--yolo` no longer silently ignored by Claude Code v2.1.x managed settings — managed settings are now relaxed to allow full permission bypass
+- Managed settings no longer block `--dangerously-skip-permissions` at the Claude Code level
 
 ### Auth Mode Selection
 - Explicit auth mode via `JEANCLAUDE_AUTH_MODE` env var or `--auth` CLI flag
