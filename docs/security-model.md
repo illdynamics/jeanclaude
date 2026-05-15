@@ -94,7 +94,10 @@ This document describes JeanClaude's security architecture — the layers of pro
 
 | Protection | Mechanism |
 |---|---|
-| Permission mode | `JEANCLAUDE_PERMISSION_MODE=default` |
+| Auth mode | `JEANCLAUDE_AUTH_MODE` controls which credentials reach child Claude Code |
+| Permission mode | `JEANCLAUDE_PERMISSION_MODE=safe` (default), `accept-edits`, `auto`, `dangerous` |
+| Dangerous mode preflight | Triple opt-in: `JEANCLAUDE_DANGEROUS=1`, `JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1`, container/CI or `JEANCLAUDE_ALLOW_HOST_DANGEROUS=1` |
+| Container detection | `/.dockerenv`, `/run/.containerenv`, `/proc/1/cgroup`, CI vars |
 | Managed settings | `disableBypassPermissionsMode: disable` by default |
 | Bash restrictions | Deny `rm -rf /`, `sudo`, `curl | sh` |
 | Git restrictions | Require approval for `git push`, force operations |
@@ -187,7 +190,8 @@ For production deployments, tighten these settings:
 
 ```bash
 # .env
-JEANCLAUDE_PERMISSION_MODE=default        # Never bypassPermissions
+JEANCLAUDE_AUTH_MODE=auto                 # Or subscription if no Anthropic keys
+JEANCLAUDE_PERMISSION_MODE=safe           # Never use dangerous on host
 JEANCLAUDE_THINKING=disabled              # Conservative for coding-agent safety
 JEANCLAUDE_MODE=direct                    # Avoid gateway unless needed
 JEANCLAUDE_WEB_SEARCH=off                 # Enable only if needed

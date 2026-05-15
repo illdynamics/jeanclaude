@@ -5,6 +5,28 @@ All notable changes to JeanClaude will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] — 2026-05-14
+
+### Added
+- Auth mode selection: `JEANCLAUDE_AUTH_MODE` env var and `--auth` CLI flag (`subscription`, `api-key`, `oauth-token`, `auth-token`, `auto`)
+- Permission mode handling: `JEANCLAUDE_PERMISSION_MODE` env var and `--permission-mode` CLI flag (`safe`, `accept-edits`, `auto`, `dangerous`, `bypassPermissions`)
+- Dangerous mode safety preflight: triple opt-in with container/CI detection
+- MCP health diagnostics: `scripts/mcp-health-check.sh` with JSON-RPC handshake, HTTP checks, env var resolution
+- MCP health integration into startup flow with retry logic
+- Startup diagnostics banner showing resolved config (backend, auth, permissions, model, MCP)
+- Dry-run mode: `JEANCLAUDE_DRY_RUN=1` prints command and exits without launch
+- 18 new wrapper tests (73–90)
+
+### Changed
+- `--permission-mode` flag now intercepted and validated by JeanClaude (Claude Code camelCase aliases accepted)
+- Permission mode default changed from implicit to explicit `safe` mode
+- Updated docs: configuration, dangerous-mode, security-model
+
+### Fixed
+- Auth mode deletions apply after CRITICAL_ENV merge (no longer overridden)
+- `--permission-mode` + `--yolo` conflict detection works after flag interception
+- `--permission-mode bypassPermissions` properly passed through to Claude Code with `--yolo`
+
 ## [0.2.1] — 2026-05-12
 
 ### Security

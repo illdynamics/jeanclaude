@@ -16,7 +16,7 @@ contact their configured providers only when explicitly enabled.
   <img src="./jeanclaude.jpg" alt="JeanClaude" width="80%">
 </p>
 
-Current version: `0.2.1` (from [`VERSION`](./VERSION)).
+Current version: `0.2.3` (from [`VERSION`](./VERSION)).
 
 Release notes: [`RELEASE-NOTES.md`](./RELEASE-NOTES.md)
 

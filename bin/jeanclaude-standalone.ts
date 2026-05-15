@@ -466,7 +466,7 @@ function getVersion(): string {
     const parsed = JSON.parse(raw);
     if (parsed.version) return parsed.version;
   } catch { /* fall through */ }
-  return "0.2.1";
+  return "0.2.3";
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -559,6 +559,117 @@ function stripParentAnthropicAuth(): void {
   for (const v of ANTHROPIC_AUTH_VARS) delete process.env[v];
   for (const v of CLAUDE_SESSION_VARS) delete process.env[v];
   for (const v of CLAUDE_OAUTH_VARS) delete process.env[v];
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTH MODE SELECTION
+// ═══════════════════════════════════════════════════════════════════
+type AuthMode = "auto" | "subscription" | "api-key" | "oauth-token" | "auth-token";
+
+function resolveAuthMode(cliMode?: string): AuthMode {
+  const envMode = (process.env.JEANCLAUDE_AUTH_MODE ?? "").toLowerCase();
+  const mode = (cliMode ?? envMode) || "auto";
+  const validModes: AuthMode[] = ["auto", "subscription", "api-key", "oauth-token", "auth-token"];
+  if (validModes.includes(mode as AuthMode)) return mode as AuthMode;
+  process.stderr.write(
+    "jeanclaude: Unknown JEANCLAUDE_AUTH_MODE '" + mode + "'. Must be: subscription, api-key, oauth-token, auth-token, or auto.\n"
+  );
+  process.exit(1);
+}
+
+function applyAuthModeToChild(childEnv: Record<string, string>, authMode: AuthMode): void {
+  switch (authMode) {
+    case "subscription":
+      // Remove API credentials so subscription/OAuth auth takes priority
+      delete childEnv.ANTHROPIC_API_KEY;
+      delete childEnv.ANTHROPIC_AUTH_TOKEN;
+      if (process.env.JEANCLAUDE_QUIET !== "1") {
+        process.stderr.write("jeanclaude: auth mode subscription — ANTHROPIC_API_KEY not passed to child.\n");
+      }
+      break;
+    case "api-key":
+      delete childEnv.ANTHROPIC_AUTH_TOKEN;
+      if (process.env.JEANCLAUDE_QUIET !== "1") {
+        const key = childEnv.ANTHROPIC_API_KEY ?? "";
+        const masked = key.length > 8 ? key.slice(0, 7) + "..." + key.slice(-4) : "***";
+        process.stderr.write("jeanclaude: auth mode api-key (" + masked + ") — API account billing applies.\n");
+      }
+      break;
+    case "oauth-token":
+      delete childEnv.ANTHROPIC_API_KEY;
+      delete childEnv.ANTHROPIC_AUTH_TOKEN;
+      if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+        childEnv.CLAUDE_CODE_OAUTH_TOKEN = process.env.CLAUDE_CODE_OAUTH_TOKEN;
+      }
+      if (process.env.JEANCLAUDE_QUIET !== "1") {
+        process.stderr.write("jeanclaude: auth mode oauth-token — using Claude subscription via OAuth token.\n");
+      }
+      break;
+    case "auth-token":
+      delete childEnv.ANTHROPIC_API_KEY;
+      if (process.env.JEANCLAUDE_QUIET !== "1") {
+        process.stderr.write("jeanclaude: auth mode auth-token — using bearer token via ANTHROPIC_AUTH_TOKEN.\n");
+      }
+      break;
+    case "auto":
+    default:
+      break;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PERMISSION MODE SELECTION
+// ═══════════════════════════════════════════════════════════════════
+type PermissionMode = "safe" | "auto" | "accept-edits" | "dangerous" | "bypassPermissions";
+
+function resolvePermissionMode(cliMode?: string): PermissionMode {
+  const envMode = (process.env.JEANCLAUDE_PERMISSION_MODE ?? "").toLowerCase();
+  let mode = (cliMode ?? envMode) || "safe";
+  // Accept Claude Code camelCase aliases
+  const aliases: Record<string, PermissionMode> = { acceptedits: "accept-edits", bypasspermissions: "bypassPermissions" };
+  mode = aliases[mode.toLowerCase()] ?? mode;
+  const validModes: PermissionMode[] = ["safe", "auto", "accept-edits", "dangerous", "bypassPermissions"];
+  if (validModes.includes(mode as PermissionMode)) return mode as PermissionMode;
+  process.stderr.write(
+    "jeanclaude: Unknown JEANCLAUDE_PERMISSION_MODE '" + mode + "'. Must be: safe, auto, accept-edits, dangerous, or bypassPermissions.\n"
+  );
+  process.exit(1);
+}
+
+function detectContainer(): boolean {
+  try {
+    if (existsSync("/.dockerenv")) return true;
+    if (existsSync("/run/.containerenv")) return true;
+  } catch { /* best effort */ }
+  try {
+    const cgroup = readFileSync("/proc/1/cgroup", "utf-8");
+    if (cgroup.includes("docker") || cgroup.includes("containerd") || cgroup.includes("kubepods")) return true;
+  } catch { /* best effort */ }
+  if (process.env.CI || process.env.GITHUB_ACTIONS || process.env.GITLAB_CI) return true;
+  return false;
+}
+
+function safetyPreflight(): { ok: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+  const explicitDangerous = process.env.JEANCLAUDE_DANGEROUS === "1";
+  const understandDangerous = process.env.JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE === "1";
+  if (!explicitDangerous) warnings.push("JEANCLAUDE_DANGEROUS=1 required for dangerous permission mode.");
+  if (!understandDangerous) warnings.push("JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1 required to confirm understanding.");
+  if (!explicitDangerous || !understandDangerous) return { ok: false, warnings };
+  if (!detectContainer() && process.env.JEANCLAUDE_ALLOW_HOST_DANGEROUS !== "1") {
+    warnings.push(
+      "Running outside container. Dangerous mode on host is strongly discouraged. Set JEANCLAUDE_ALLOW_HOST_DANGEROUS=1 to override."
+    );
+    return { ok: false, warnings };
+  }
+  try {
+    const r = execFileSync("git", ["status", "--porcelain"], { encoding: "utf-8", timeout: 3000, stdio: ["pipe", "pipe", "pipe"] });
+    if (r.trim()) warnings.push("Git working tree has uncommitted changes — dangerous mode may cause unrecoverable modifications.");
+  } catch { /* git unavailable, non-fatal */ }
+  try {
+    if (existsSync(resolve(process.cwd(), ".env"))) warnings.push(".env file detected — dangerous mode may expose secrets.");
+  } catch { /* best effort */ }
+  return { ok: true, warnings };
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1117,6 +1228,14 @@ async function cmdDoctor(): Promise<void> {
   const mode = resolveJeanclaudeMode();
   checks.push("JeanClaude mode: " + mode);
 
+  // 5b. Auth mode
+  const authMode = resolveAuthMode();
+  checks.push("Auth mode: " + authMode);
+
+  // 5c. Permission mode
+  const permMode = resolvePermissionMode();
+  checks.push("Permission mode: " + permMode);
+
   // 6. Base URL
   const baseUrl = process.env.ANTHROPIC_BASE_URL ?? process.env.JEANCLAUDE_ANTHROPIC_BASE_URL ?? "https://api.deepseek.com/anthropic";
   checks.push("ANTHROPIC_BASE_URL: " + baseUrl);
@@ -1499,6 +1618,10 @@ function runClaude(opts: RunClaudeOptions): void {
     if (val !== undefined && val !== null) childEnv[k] = val;
   }
 
+  // Apply auth mode to child env after CRITICAL_ENV merge so deletions stick
+  const authMode = (process.env._JEANCLAUDE_AUTH_MODE ?? "auto") as AuthMode;
+  applyAuthModeToChild(childEnv, authMode);
+
   const child = spawn(claudeBin, argv, {
     stdio: "inherit",
     env: childEnv,
@@ -1536,6 +1659,142 @@ function runClaude(opts: RunClaudeOptions): void {
     process.stderr.write("jeanclaude: failed to spawn claude: " + err.message + "\n");
     process.exit(1);
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MCP HEALTH CHECK
+// ═══════════════════════════════════════════════════════════════════
+
+function attemptMcpHandshake(command: string, args: string[], timeoutMs = 3000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env },
+    });
+    const timer = setTimeout(() => { child.kill("SIGKILL"); resolve(false); }, timeoutMs);
+    const request = JSON.stringify({
+      jsonrpc: "2.0", id: 1, method: "initialize",
+      params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "jeanclaude-healthcheck", version: "1.0" } },
+    }) + "\n";
+    let response = "";
+    child.stdout.on("data", (data: Buffer) => {
+      response += data.toString();
+      try {
+        const parsed = JSON.parse(response.trim());
+        if (parsed.id === 1 && (parsed.result || parsed.error)) {
+          clearTimeout(timer); child.kill("SIGKILL"); resolve(true);
+        }
+      } catch { /* incomplete JSON, wait */ }
+    });
+    child.on("error", () => { clearTimeout(timer); resolve(false); });
+    child.stdin.write(request);
+    child.stdin.end();
+  });
+}
+
+async function checkMcpHealth(): Promise<{ ok: boolean; statuses: string[] }> {
+  const statuses: string[] = [];
+  const mcpConfigPath = process.env.JEANCLAUDE_MCP_CONFIG ?? resolve(process.cwd(), ".mcp.json");
+  if (!existsSync(mcpConfigPath)) {
+    statuses.push("MCP: no config at " + mcpConfigPath + " (skipped)");
+    return { ok: true, statuses };
+  }
+  let config: any;
+  try { config = JSON.parse(readFileSync(mcpConfigPath, "utf-8")); } catch {
+    statuses.push("MCP: INVALID JSON at " + mcpConfigPath);
+    return { ok: false, statuses };
+  }
+  const servers = config.mcpServers ?? {};
+  const requiredList = (process.env.JEANCLAUDE_MCP_REQUIRED ?? "").split(",").filter(Boolean);
+  let allOk = true;
+  for (const [name, server] of Object.entries(servers)) {
+    const srv = server as any;
+    const isRequired = requiredList.length === 0 || requiredList.includes(name);
+    if (!srv.command) {
+      statuses.push("MCP '" + name + "': no command configured");
+      if (isRequired) allOk = false;
+      continue;
+    }
+    let runtimeOk = false;
+    try { execFileSync("which", [srv.command], { encoding: "utf-8", timeout: 2000 }); runtimeOk = true; } catch { /* not in PATH */ }
+    if (!runtimeOk && existsSync(srv.command)) runtimeOk = true;
+    if (!runtimeOk) {
+      statuses.push("MCP '" + name + "': command '" + srv.command + "' not found in PATH");
+      if (isRequired) allOk = false;
+      continue;
+    }
+    if (srv.env) {
+      for (const [envKey, envVal] of Object.entries(srv.env)) {
+        if (typeof envVal === "string" && envVal.startsWith("$")) {
+          const refdVar = envVal.slice(1);
+          if (!process.env[refdVar]) {
+            statuses.push("MCP '" + name + "': env var " + refdVar + " (referenced by " + envKey + ") not set");
+            if (isRequired) allOk = false;
+          }
+        }
+      }
+    }
+    if (srv.type === "stdio" || !srv.type) {
+      let handshakeOk = false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try { handshakeOk = await attemptMcpHandshake(srv.command, srv.args ?? []); if (handshakeOk) break; } catch { /* retry */ }
+        if (attempt < 3) await new Promise(r => setTimeout(r, Math.min(1000 * Math.pow(2, attempt - 1), 5000)));
+      }
+      if (!handshakeOk) {
+        statuses.push("MCP '" + name + "': handshake FAILED after 3 retries");
+        if (isRequired) allOk = false;
+      } else {
+        statuses.push("MCP '" + name + "': OK");
+      }
+    } else if (srv.type === "http" || srv.type === "url") {
+      const url = srv.url ?? "";
+      if (url) {
+        try {
+          const proto = url.startsWith("https") ? https : http;
+          await new Promise<void>((resolve, reject) => {
+            const req = proto.get(url, { timeout: 5000 }, (res) => {
+              if (res.statusCode && res.statusCode < 500) resolve(); else reject(new Error("HTTP " + res.statusCode));
+            });
+            req.on("error", reject);
+            req.on("timeout", () => { req.destroy(); reject(new Error("timeout")); });
+          });
+          statuses.push("MCP '" + name + "': HTTP OK (" + url + ")");
+        } catch {
+          statuses.push("MCP '" + name + "': HTTP FAILED (" + url + ")");
+          if (isRequired) allOk = false;
+        }
+      }
+    } else {
+      statuses.push("MCP '" + name + "': unknown type=" + (srv.type ?? "unknown"));
+    }
+  }
+  return { ok: allOk, statuses };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STARTUP DIAGNOSTICS
+// ═══════════════════════════════════════════════════════════════════
+
+function printStartupDiagnostics(opts: {
+  authMode: AuthMode; permissionMode: PermissionMode; modelProfile: { backendModel: string; thinkingEnabled: boolean };
+  resolvedProfileName: string; jeanclaudeMode: string; claudeBin: string; mcpStatuses?: string[];
+}): void {
+  if (process.env.JEANCLAUDE_QUIET === "1") return;
+  const lines: string[] = [];
+  const baseUrl = process.env.ANTHROPIC_BASE_URL ?? "(not set)";
+  lines.push("backend=" + (baseUrl.includes("deepseek") ? "DeepSeek" : baseUrl.includes("gateway") ? "Gateway" : baseUrl));
+  lines.push("auth=" + opts.authMode);
+  lines.push("permissions=" + opts.permissionMode);
+  lines.push("model=" + opts.resolvedProfileName + "->" + opts.modelProfile.backendModel + (opts.modelProfile.thinkingEnabled ? "(thinking)" : ""));
+  if (opts.mcpStatuses && opts.mcpStatuses.length > 0) {
+    const healthy = opts.mcpStatuses.filter(s => s.includes("OK") || s.includes("skipped"));
+    const issues = opts.mcpStatuses.filter(s => !s.includes("OK") && !s.includes("skipped"));
+    lines.push("mcp=" + healthy.length + "OK" + (issues.length > 0 ? "/" + issues.length + "issues" : ""));
+    if (issues.length > 0 && process.env.JEANCLAUDE_QUIET !== "1") {
+      for (const issue of issues) process.stderr.write("jeanclaude: [mcp] " + issue + "\n");
+    }
+  }
+  process.stderr.write("jeanclaude: [" + lines.join("] [") + "]\n");
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1654,6 +1913,30 @@ async function main(): Promise<void> {
     }
   }
 
+  // --auth: explicit auth mode selection
+  let cliAuthMode: string | null = null;
+  for (let i = passArgs.length - 1; i >= 0; i--) {
+    if (passArgs[i] === "--auth" && i + 1 < passArgs.length) {
+      cliAuthMode = passArgs[i + 1];
+      passArgs.splice(i, 2);
+    } else if (passArgs[i].startsWith("--auth=")) {
+      cliAuthMode = passArgs[i].split("=", 2)[1];
+      passArgs.splice(i, 1);
+    }
+  }
+
+  // --permission-mode: explicit permission mode (intercepted before claude)
+  let cliPermissionMode: string | null = null;
+  for (let i = passArgs.length - 1; i >= 0; i--) {
+    if (passArgs[i] === "--permission-mode" && i + 1 < passArgs.length) {
+      cliPermissionMode = passArgs[i + 1];
+      passArgs.splice(i, 2);
+    } else if (passArgs[i].startsWith("--permission-mode=")) {
+      cliPermissionMode = passArgs[i].split("=", 2)[1];
+      passArgs.splice(i, 1);
+    }
+  }
+
   // --uncensored-mode / -U: load uncensored system prompt
   const uncensoredMode = passArgs.includes("--uncensored-mode") || passArgs.includes("-U");
   if (uncensoredMode) {
@@ -1679,6 +1962,13 @@ async function main(): Promise<void> {
     );
   }
 
+  // ── Resolve auth mode ───────────────────────────────────────────
+  const authMode = resolveAuthMode(cliAuthMode ?? undefined);
+  process.env._JEANCLAUDE_AUTH_MODE = authMode;
+
+  // ── Resolve permission mode ─────────────────────────────────────
+  const permissionMode = resolvePermissionMode(cliPermissionMode ?? undefined);
+
   // ── Resolve execution mode ──────────────────────────────────────
   const jeanclaudeMode = resolveJeanclaudeMode(cliJeanclaudeMode ?? undefined);
   process.env._JEANCLAUDE_CLI_MODE = jeanclaudeMode;
@@ -1696,8 +1986,8 @@ async function main(): Promise<void> {
   }
 
   if (yoloMode) {
-    const permMode = getPermissionMode(passArgs);
-    if (permMode !== null && permMode !== "bypassPermissions") {
+    // Use already-parsed cliPermissionMode (flag was already spliced from passArgs)
+    if (cliPermissionMode !== null && cliPermissionMode !== "bypassPermissions") {
       process.stderr.write(
         "JeanClaude dangerous mode conflicts with explicit --permission-mode. Remove one.\n"
       );
@@ -1706,18 +1996,81 @@ async function main(): Promise<void> {
 
     if (
       !hasFlag(passArgs, "--dangerously-skip-permissions") &&
-      permMode !== "bypassPermissions"
+      cliPermissionMode !== "bypassPermissions"
     ) {
       passArgs = passArgs.filter((a) => a !== "--yolo" && a !== "-Y");
       passArgs.push("--dangerously-skip-permissions");
     } else {
       passArgs = passArgs.filter((a) => a !== "--yolo" && a !== "-Y");
+      // Re-inject --permission-mode bypassPermissions that we intercepted
+      if (cliPermissionMode === "bypassPermissions") {
+        passArgs.push("--permission-mode");
+        passArgs.push("bypassPermissions");
+      }
     }
 
     if (process.env.JEANCLAUDE_QUIET !== "1") {
       process.stderr.write(
         "JeanClaude dangerous mode enabled: Claude Code permission prompts are bypassed for this session.\n"
       );
+    }
+  }
+
+  // ── Permission mode handling ──────────────────────────────────
+  // If --yolo/-Y was NOT used, apply the resolved permission mode
+  if (!yoloMode) {
+    switch (permissionMode) {
+      case "dangerous": {
+        const preflight = safetyPreflight();
+        if (!preflight.ok) {
+          for (const w of preflight.warnings) {
+            process.stderr.write("jeanclaude: [preflight] " + w + "\n");
+          }
+          process.stderr.write(
+            "jeanclaude: dangerous permission mode preflight FAILED.\n" +
+            "  Address warnings above or use --yolo (without preflight).\n" +
+            "  For details see docs/dangerous-mode.md\n"
+          );
+          process.exit(1);
+        }
+        for (const w of preflight.warnings) {
+          process.stderr.write("jeanclaude: [preflight:note] " + w + "\n");
+        }
+        process.stderr.write(
+          "jeanclaude: DANGEROUS MODE ENABLED — no approval prompts / reduced sandbox.\n" +
+          "  Use only in isolated disposable environments.\n"
+        );
+        passArgs.push("--dangerously-skip-permissions");
+        break;
+      }
+      case "bypassPermissions": {
+        // Backward-compat: explicit bypassPermissions mode
+        passArgs.push("--permission-mode");
+        passArgs.push("bypassPermissions");
+        break;
+      }
+      case "accept-edits": {
+        passArgs.push("--permission-mode");
+        passArgs.push("acceptEdits");
+        break;
+      }
+      case "auto": {
+        passArgs.push("--permission-mode");
+        passArgs.push("auto");
+        break;
+      }
+      case "safe":
+      default:
+        // No permission flags — Claude Code uses default interactive prompts
+        break;
+    }
+  } else {
+    // --yolo/-Y was used: conflict check with new --permission-mode
+    if (permissionMode !== "safe" && permissionMode !== "bypassPermissions" && cliPermissionMode) {
+      process.stderr.write(
+        "jeanclaude: --yolo/-Y conflicts with explicit --permission-mode=" + permissionMode + ". Use one or the other.\n"
+      );
+      process.exit(1);
     }
   }
 
@@ -1755,8 +2108,9 @@ async function main(): Promise<void> {
       }
     } else if (gwMode === "container") {
       process.stderr.write(
-        "jeanclaude: container gateway mode is experimental. Use 'process' or 'external' mode.\n"
+        "jeanclaude: container gateway mode is not yet implemented. Use 'process' or 'external' mode.\n"
       );
+      process.exit(1);
     }
   }
 
@@ -1766,6 +2120,20 @@ async function main(): Promise<void> {
   // ── Privacy: assert base URL and session vars ──────────────────
   if (isPrivacyLockdown()) {
     assertBaseUrlNotAnthropic();
+  }
+
+  // ── MCP health check ───────────────────────────────────────────
+  let mcpStatuses: string[] = [];
+  if (process.env.JEANCLAUDE_MCP_HEALTH_CHECK !== "0") {
+    const mcpHealth = await checkMcpHealth();
+    mcpStatuses = mcpHealth.statuses;
+    if (!mcpHealth.ok && process.env.JEANCLAUDE_MCP_REQUIRED) {
+      process.stderr.write("jeanclaude: MCP health check FAILED — required server(s) are down.\n");
+      for (const s of mcpStatuses) {
+        if (!s.includes("OK") && !s.includes("skipped")) process.stderr.write("  " + s + "\n");
+      }
+      process.exit(1);
+    }
   }
 
   // ── Find claude binary ──────────────────────────────────────────
@@ -1787,6 +2155,27 @@ async function main(): Promise<void> {
     if (!isInteractive && !passArgs.includes("--no-session-persistence")) {
       passArgs.push("--no-session-persistence");
     }
+  }
+
+  // ── Startup diagnostics ────────────────────────────────────────
+  printStartupDiagnostics({
+    authMode, permissionMode,
+    modelProfile: { backendModel: modelProfile.backendModel, thinkingEnabled: modelProfile.thinkingEnabled },
+    resolvedProfileName, jeanclaudeMode, claudeBin, mcpStatuses,
+  });
+
+  // ── Dry-run ───────────────────────────────────────────────────
+  if (process.env.JEANCLAUDE_DRY_RUN === "1") {
+    const resolvedBaseUrl = process.env.ANTHROPIC_BASE_URL ?? "(not set)";
+    process.stderr.write("JEANCLAUDE_DRY_RUN=1 — would execute:\n");
+    process.stderr.write("  Binary:        " + claudeBin + "\n");
+    process.stderr.write("  Args:          " + passArgs.map(a => a.includes(" ") ? "'" + a + "'" : a).join(" ") + "\n");
+    process.stderr.write("  Auth mode:     " + authMode + "\n");
+    process.stderr.write("  Base URL:      " + resolvedBaseUrl + "\n");
+    process.stderr.write("  Permissions:   " + permissionMode + "\n");
+    process.stderr.write("  Model:         " + resolvedProfileName + " -> " + modelProfile.backendModel + "\n");
+    process.stderr.write("  Execution:     " + jeanclaudeMode + "\n");
+    process.exit(0);
   }
 
   // ── Launch ──────────────────────────────────────────────────────

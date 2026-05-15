@@ -361,7 +361,7 @@ describe('Static privacy checks', () => {
     for (const p of searchPaths) {
       try {
         const child = spawn('grep', ['-rl', 'api.anthropic.com', p], {
-          cwd: '/Users/wicked/x/jeanclaude',
+          cwd: REPO_ROOT,
           stdio: ['pipe', 'pipe', 'pipe'],
           timeout: 5000,
         });
@@ -392,7 +392,7 @@ describe('Static privacy checks', () => {
     for (const p of searchPaths) {
       try {
         const child = spawn('grep', ['-rl', 'claude.ai', p], {
-          cwd: '/Users/wicked/x/jeanclaude',
+          cwd: REPO_ROOT,
           stdio: ['pipe', 'pipe', 'pipe'],
           timeout: 5000,
         });

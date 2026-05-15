@@ -88,7 +88,7 @@ export function createServer(config = loadGatewayConfig()) {
             return;
           }
         }
-        jsonResponse(res, 200, { ok: true, version: '0.2.1', mode: 'gateway' });
+        jsonResponse(res, 200, { ok: true, version: '0.2.3', mode: 'gateway' });
         return;
       }
 

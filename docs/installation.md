@@ -30,9 +30,9 @@ cd jeanclaude
 Download the latest release archive from the releases page and extract it:
 
 ```bash
-curl -L -o jeanclaude-v0.2.1.zip https://github.com/illdynamics/jeanclaude/releases/download/v0.2.1/jeanclaude-v0.2.1.zip
-unzip jeanclaude-v0.2.1.zip
-cd jeanclaude-v0.2.1
+curl -L -o jeanclaude-v0.2.3.zip https://github.com/illdynamics/jeanclaude/releases/download/v0.2.3/jeanclaude-v0.2.3.zip
+unzip jeanclaude-v0.2.3.zip
+cd jeanclaude-v0.2.3
 ```
 
 ## Setup

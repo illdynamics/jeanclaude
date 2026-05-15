@@ -73,9 +73,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     NPM_CONFIG_AUDIT=false \
     NPM_CONFIG_FUND=false \
     NODE_ENV=production
-# Default profile if JEANCLAUDE_MODEL_PROFILE is not otherwise set
-ENV JEANCLAUDE_MODEL_PROFILE=v4-flash
-
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \

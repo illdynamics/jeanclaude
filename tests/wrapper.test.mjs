@@ -1298,3 +1298,176 @@ it('72. bin/jeanclaude delegates to standalone even with JEANCLAUDE_DOCKER=1', a
   assert.strictEqual(result.exitCode, 0, 'should exit 0 when standalone handles --version even with JEANCLAUDE_DOCKER=1');
   assert.ok(result.stdout.trim().length > 0, 'should print version output');
 });
+
+  // --- Auth mode tests ----------------------------------------------------
+  it('73. JEANCLAUDE_AUTH_MODE=subscription unsets ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN', async () => {
+    const { fakeOutput } = await runWrapper(['-p', 'test'], {
+      env: { JEANCLAUDE_AUTH_MODE: 'subscription' },
+    });
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    assert.strictEqual(fakeOutput.env.ANTHROPIC_API_KEY, undefined, 'ANTHROPIC_API_KEY should be unset');
+    assert.strictEqual(fakeOutput.env.ANTHROPIC_AUTH_TOKEN, undefined, 'ANTHROPIC_AUTH_TOKEN should be unset');
+  });
+
+  it('74. JEANCLAUDE_AUTH_MODE=api-key keeps ANTHROPIC_API_KEY', async () => {
+    const { fakeOutput } = await runWrapper(['-p', 'test'], {
+      env: { JEANCLAUDE_AUTH_MODE: 'api-key' },
+    });
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    assert.notStrictEqual(fakeOutput.env.ANTHROPIC_API_KEY, undefined, 'ANTHROPIC_API_KEY should be set');
+    assert.ok(typeof fakeOutput.env.ANTHROPIC_API_KEY === 'string' && fakeOutput.env.ANTHROPIC_API_KEY.length > 0, 'ANTHROPIC_API_KEY should be non-empty');
+  });
+
+  it('75. JEANCLAUDE_AUTH_MODE=oauth-token unsets API credentials', async () => {
+    const { fakeOutput } = await runWrapper(['-p', 'test'], {
+      env: { JEANCLAUDE_AUTH_MODE: 'oauth-token' },
+    });
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    assert.strictEqual(fakeOutput.env.ANTHROPIC_API_KEY, undefined, 'ANTHROPIC_API_KEY should be unset');
+    assert.strictEqual(fakeOutput.env.ANTHROPIC_AUTH_TOKEN, undefined, 'ANTHROPIC_AUTH_TOKEN should be unset');
+  });
+
+  it('76. JEANCLAUDE_AUTH_MODE=auth-token keeps ANTHROPIC_AUTH_TOKEN, unsets API key', async () => {
+    const { fakeOutput } = await runWrapper(['-p', 'test'], {
+      env: { JEANCLAUDE_AUTH_MODE: 'auth-token' },
+    });
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    assert.strictEqual(fakeOutput.env.ANTHROPIC_API_KEY, undefined, 'ANTHROPIC_API_KEY should be unset');
+    assert.notStrictEqual(fakeOutput.env.ANTHROPIC_AUTH_TOKEN, undefined, 'ANTHROPIC_AUTH_TOKEN should be set');
+  });
+
+  it('77. JEANCLAUDE_AUTH_MODE=auto preserves current behavior (both set)', async () => {
+    const { fakeOutput } = await runWrapper(['-p', 'test'], {
+      env: { JEANCLAUDE_AUTH_MODE: 'auto' },
+    });
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    assert.notStrictEqual(fakeOutput.env.ANTHROPIC_API_KEY, undefined, 'ANTHROPIC_API_KEY should be set');
+    assert.notStrictEqual(fakeOutput.env.ANTHROPIC_AUTH_TOKEN, undefined, 'ANTHROPIC_AUTH_TOKEN should be set');
+  });
+
+  it('78. --auth CLI flag overrides JEANCLAUDE_AUTH_MODE env var', async () => {
+    const { fakeOutput } = await runWrapper(['--auth', 'subscription', '-p', 'test'], {
+      env: { JEANCLAUDE_AUTH_MODE: 'api-key' },
+    });
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    assert.strictEqual(fakeOutput.env.ANTHROPIC_API_KEY, undefined, 'CLI --auth subscription should override env api-key');
+  });
+
+  it('79. invalid JEANCLAUDE_AUTH_MODE exits with error', async () => {
+    const { stderr, exitCode } = await runWrapper(['-p', 'test'], {
+      env: { JEANCLAUDE_AUTH_MODE: 'bogus-mode' },
+    });
+    assert.strictEqual(exitCode, 1, 'should exit 1 for invalid auth mode');
+    assert.ok(stderr.includes('auth') || stderr.includes('bogus'), 'stderr should mention auth or the invalid value');
+  });
+
+  it('80. --auth flag is consumed and not passed to claude', async () => {
+    const { fakeOutput } = await runWrapper(['--auth', 'subscription', '-p', 'test']);
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    const args = fakeOutput.argv.slice(2);
+    assert.ok(!args.includes('--auth'), '--auth should be consumed');
+    assert.ok(!args.includes('subscription'), 'auth value should not leak');
+  });
+
+  it('81. doctor output includes auth mode and permission mode', async () => {
+    const { stdout } = await runWrapper(['doctor'], {
+      env: { JEANCLAUDE_AUTH_MODE: 'api-key', JEANCLAUDE_PERMISSION_MODE: 'accept-edits' },
+    });
+    assert.ok(stdout.includes('api-key'), 'doctor should report auth mode');
+    assert.ok(stdout.includes('accept-edits'), 'doctor should report permission mode');
+  });
+
+  // --- Permission mode tests ----------------------------------------------
+  it('82. JEANCLAUDE_PERMISSION_MODE=safe (default) adds no permission flags', async () => {
+    const { fakeOutput } = await runWrapper(['-p', 'test'], {
+      env: { JEANCLAUDE_PERMISSION_MODE: 'safe' },
+    });
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    const args = fakeOutput.argv.slice(2);
+    assert.ok(!args.includes('--permission-mode'), 'safe mode should not add --permission-mode');
+    assert.ok(!args.includes('--dangerously-skip-permissions'), 'safe mode should not add DSP');
+  });
+
+  it('83. JEANCLAUDE_PERMISSION_MODE=accept-edits adds --permission-mode acceptEdits', async () => {
+    const { fakeOutput } = await runWrapper(['-p', 'test'], {
+      env: { JEANCLAUDE_PERMISSION_MODE: 'accept-edits' },
+    });
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    const args = fakeOutput.argv.slice(2);
+    const permIdx = args.indexOf('--permission-mode');
+    assert.notStrictEqual(permIdx, -1, 'should have --permission-mode flag');
+    assert.strictEqual(args[permIdx + 1], 'acceptEdits', 'should pass acceptEdits');
+  });
+
+  it('84. JEANCLAUDE_PERMISSION_MODE=auto adds --permission-mode auto', async () => {
+    const { fakeOutput } = await runWrapper(['-p', 'test'], {
+      env: { JEANCLAUDE_PERMISSION_MODE: 'auto' },
+    });
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    const args = fakeOutput.argv.slice(2);
+    const permIdx = args.indexOf('--permission-mode');
+    assert.notStrictEqual(permIdx, -1, 'should have --permission-mode flag');
+    assert.strictEqual(args[permIdx + 1], 'auto', 'should pass auto');
+  });
+
+  it('85. --permission-mode CLI flag overrides env var', async () => {
+    const { fakeOutput } = await runWrapper(['--permission-mode', 'safe', '-p', 'test'], {
+      env: { JEANCLAUDE_PERMISSION_MODE: 'accept-edits' },
+    });
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    const args = fakeOutput.argv.slice(2);
+    assert.ok(!args.includes('--permission-mode'), 'CLI safe should suppress permission flags');
+    assert.ok(!args.includes('acceptEdits'), 'env accept-edits should be overridden');
+  });
+
+  it('86. dangerous mode without JEANCLAUDE_DANGEROUS=1 fails preflight', async () => {
+    const { stderr, exitCode } = await runWrapper(['--permission-mode', 'dangerous', '-p', 'test'], {
+      env: {
+        JEANCLAUDE_DANGEROUS: undefined,
+        JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE: undefined,
+        JEANCLAUDE_ALLOW_HOST_DANGEROUS: undefined,
+      },
+    });
+    assert.strictEqual(exitCode, 1, 'should exit 1 on preflight failure');
+    assert.ok(stderr.includes('JEANCLAUDE_DANGEROUS'), 'should mention required env var');
+  });
+
+  it('87. dangerous mode with env vars and JEANCLAUDE_ALLOW_HOST_DANGEROUS=1 passes', async () => {
+    const { exitCode, stderr } = await runWrapper(['--permission-mode', 'dangerous', '-p', 'test'], {
+      env: {
+        JEANCLAUDE_DANGEROUS: '1',
+        JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE: '1',
+        JEANCLAUDE_ALLOW_HOST_DANGEROUS: '1',
+      },
+      timeout: 15000,
+    });
+    assert.strictEqual(exitCode, 0, 'should exit 0 after passing preflight');
+    assert.ok(stderr.includes('DANGEROUS MODE ENABLED'), 'should print dangerous mode banner');
+  });
+
+  it('88. JEANCLAUDE_DRY_RUN=1 prints command and exits 0 without invoking claude', async () => {
+    const { stderr, exitCode, fakeOutput } = await runWrapper(['-p', 'test'], {
+      env: { JEANCLAUDE_DRY_RUN: '1' },
+    });
+    assert.strictEqual(exitCode, 0, 'dry-run should exit 0');
+    assert.ok(stderr.includes('DRY_RUN'), 'should indicate dry run');
+    assert.ok(stderr.includes('Binary:'), 'should show binary path');
+    assert.ok(stderr.includes('Auth mode:'), 'should show auth mode in dry run');
+    assert.strictEqual(fakeOutput, null, 'should not invoke fake claude in dry run');
+  });
+
+  it('89. invalid JEANCLAUDE_PERMISSION_MODE exits with error', async () => {
+    const { stderr, exitCode } = await runWrapper(['-p', 'test'], {
+      env: { JEANCLAUDE_PERMISSION_MODE: 'nope' },
+    });
+    assert.strictEqual(exitCode, 1, 'should exit 1');
+    assert.ok(stderr.includes('permission') || stderr.includes('nope'), 'stderr should mention permission');
+  });
+
+  it('90. --yolo/-Y backward compatibility still works', async () => {
+    const { fakeOutput, stderr } = await runWrapper(['-Y', '-p', 'test']);
+    assert.ok(fakeOutput, 'fake claude should produce JSON output');
+    const args = fakeOutput.argv.slice(2);
+    assert.ok(args.includes('--dangerously-skip-permissions'), '--yolo should add DSP flag');
+    assert.ok(stderr.includes('dangerous') || stderr.includes('bypass'), 'should warn about dangerous mode');
+  });

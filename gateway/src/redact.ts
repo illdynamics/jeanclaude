@@ -51,7 +51,7 @@ export function isSafeKey(key) {
  * Check if a string value looks like a secret based on value patterns:
  * - Common API key prefixes: sk-, dsk-, pk-, key-, secret-
  * - Looks like a JWT (three base64url segments separated by dots)
- * - Long random-looking hex strings (>32 chars)
+ * - Long random-looking strings (>48 chars, high entropy, no path structure)
  */
 export function isSecretValue(value) {
   if (typeof value !== 'string') return false;
@@ -72,9 +72,17 @@ export function isSecretValue(value) {
     return true;
   }
 
-  // Long random-looking strings: >32 chars, mostly alphanumeric with symbols
-  if (s.length > 32 && /^[A-Za-z0-9._\-\/+=]{33,}$/.test(s)) {
-    return true;
+  // Long random-looking strings: >48 chars, mixed-case alphanumeric with limited symbols.
+  // Exclude path-like strings (>2 slashes), hash prefixes (sha*/md5), and known
+  // non-secret formats (docker digests, git refs).
+  if (s.length > 48) {
+    const slashes = (s.match(/\//g) || []).length;
+    if (slashes > 2) return false; // path or URL
+    if (/^(sha|md5|blake)/i.test(s)) return false; // hash digest prefixes
+    // Must contain both upper and lower case letters (high entropy signal)
+    if (!/[A-Z]/.test(s) || !/[a-z]/.test(s)) return false;
+    // Limited symbol set: base64url-like alphanumeric with ._-+
+    if (/^[A-Za-z0-9._\-\/+=]+$/.test(s)) return true;
   }
 
   return false;

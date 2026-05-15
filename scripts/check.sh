@@ -284,10 +284,12 @@ note "running privacy lockdown static checks"
 # 15a. No api.anthropic.com in runtime source files
 note "checking for api.anthropic.com in runtime files"
 an_api_hits="$(grep -rl 'api\.anthropic\.com' bin/ config/ scripts/ gateway/ jeanclaude Dockerfile Makefile docker-compose.yml docker-compose.open-responses.yml 2>/dev/null || true)"
-if [[ -n "$an_api_hits" ]]; then
+# Exclude files that use api.anthropic.com in blocklist/assertion context (not as live endpoint)
+an_api_real="$(grep -vF 'scripts/check.sh' <<<"$an_api_hits" | grep -vF 'jeanclaude-standalone' || true)"
+if [[ -n "$an_api_real" ]]; then
   while IFS= read -r f; do
     fail "found api.anthropic.com in runtime file: $f"
-  done <<<"$an_api_hits"
+  done <<<"$an_api_real"
 else
   note "no api.anthropic.com in runtime files (good)"
 fi
@@ -295,10 +297,12 @@ fi
 # 15b. No claude.ai in runtime source files
 note "checking for claude.ai in runtime files"
 claude_ai_hits="$(grep -rl 'claude\.ai' bin/ config/ scripts/ gateway/ jeanclaude Dockerfile Makefile docker-compose.yml docker-compose.open-responses.yml 2>/dev/null || true)"
-if [[ -n "$claude_ai_hits" ]]; then
+# Exclude files that use claude.ai in blocklist/assertion context (not as live endpoint)
+claude_ai_real="$(grep -vF 'scripts/check.sh' <<<"$claude_ai_hits" | grep -vF 'jeanclaude-standalone' || true)"
+if [[ -n "$claude_ai_real" ]]; then
   while IFS= read -r f; do
     fail "found claude.ai in runtime file: $f"
-  done <<<"$claude_ai_hits"
+  done <<<"$claude_ai_real"
 else
   note "no claude.ai in runtime files (good)"
 fi

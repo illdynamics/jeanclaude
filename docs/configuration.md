@@ -122,13 +122,76 @@ See [Thinking Profiles](./thinking-profiles.md) for full details on how thinking
 | `JEANCLAUDE_DOCUMENT_STORE` | `/workspace/.jeanclaude/documents` | Local path for the document index and chunk storage. |
 | `JEANCLAUDE_MAX_INGEST_BYTES` | *(built-in)* | Maximum file size for document ingestion. Files exceeding this are rejected. |
 
+## Auth Mode
+
+Controls which credentials reach the child Claude Code process. Does not affect DeepSeek routing.
+
+| Variable | Default | Description |
+|---|---|---|
+| `JEANCLAUDE_AUTH_MODE` | `auto` | Auth mode: `subscription`, `api-key`, `oauth-token`, `auth-token`, or `auto` |
+
+| Mode | ANTHROPIC_API_KEY | ANTHROPIC_AUTH_TOKEN | Use Case |
+|---|---|---|---|
+| `auto` | Passed through | Passed through | Default — preserves current behavior |
+| `subscription` | Removed | Removed | DeepSeek subscription users who don't have Anthropic keys |
+| `api-key` | Passed through | Removed | API key auth only |
+| `oauth-token` | Removed | Removed | OAuth/SSO flow (CLAUDE_CODE_OAUTH_TOKEN) |
+| `auth-token` | Removed | Passed through | Auth token flow only |
+
+```bash
+# Stop Claude Code from asking about ANTHROPIC_API_KEY in subscription mode
+JEANCLAUDE_AUTH_MODE=subscription
+
+# Or via CLI flag (overrides env var)
+jeanclaude --auth subscription -p "refactor this"
+```
+
 ## Permission Mode
 
 | Variable | Default | Description |
 |---|---|---|
-| `JEANCLAUDE_PERMISSION_MODE` | `default` | Claude Code permission mode. `default` uses the configured permissions in `settings.json`. `bypassPermissions` disables all permission prompts (equivalent to `--yolo`). **Only use in sandboxed environments.** |
+| `JEANCLAUDE_PERMISSION_MODE` | `safe` | Permission mode: `safe`, `accept-edits`, `auto`, `dangerous`, or `bypassPermissions` |
 
-See [`dangerous-mode.md`](./dangerous-mode.md) for important safety warnings.
+| Mode | Behavior | Requires |
+|---|---|---|
+| `safe` (default) | Interactive prompts for all tool calls | Nothing |
+| `accept-edits` | Auto-approve file edits, prompt for bash/network | Nothing |
+| `auto` | Auto-approve safe operations | Nothing |
+| `dangerous` | `--dangerously-skip-permissions` — no prompts | Safety preflight (see below) |
+| `bypassPermissions` | Backward compat alias for `--permission-mode bypassPermissions` | Nothing |
+
+**Dangerous mode safety preflight** requires ALL of:
+1. `JEANCLAUDE_DANGEROUS=1` — explicit opt-in
+2. `JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1` — acknowledgement
+3. Running in container/CI OR `JEANCLAUDE_ALLOW_HOST_DANGEROUS=1` — host protection
+
+```bash
+# Via env var
+JEANCLAUDE_PERMISSION_MODE=accept-edits
+
+# Or via CLI flag (overrides env var)
+jeanclaude --permission-mode accept-edits -p "refactor this"
+
+# Dangerous mode (triple opt-in required)
+JEANCLAUDE_PERMISSION_MODE=dangerous \
+JEANCLAUDE_DANGEROUS=1 \
+JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1 \
+JEANCLAUDE_ALLOW_HOST_DANGEROUS=1 \
+jeanclaude -p "auto-refactor codebase"
+```
+
+See [`dangerous-mode.md`](./dangerous-mode.md) for detailed safety warnings.
+
+## Dry-Run Mode
+
+| Variable | Default | Description |
+|---|---|---|
+| `JEANCLAUDE_DRY_RUN` | — | Set to `1` to print the resolved command, config, and exit without launching Claude Code. |
+
+```bash
+JEANCLAUDE_DRY_RUN=1 jeanclaude --auth subscription -p "test"
+# Prints: binary, args, auth mode, base URL, permissions, model, execution
+```
 
 ## Debug and Logging
 
@@ -193,6 +256,12 @@ jeanclaude --effort max -p "deep analysis"
 # Execution mode
 jeanclaude --jeanclaude-mode gateway --gateway-mode process -p "policy-enforced"
 
+# Auth mode
+jeanclaude --auth subscription -p "no Anthropic key needed"
+
+# Permission mode
+jeanclaude --permission-mode accept-edits -p "auto-approve edits"
+
 # Gateway management
 jeanclaude gateway start
 jeanclaude gateway status
@@ -227,7 +296,8 @@ JEANCLAUDE_DOCUMENTS=on
 UNSTRUCTURED_API_KEY=your-unstructured-key
 
 # Security
-JEANCLAUDE_PERMISSION_MODE=default
+JEANCLAUDE_AUTH_MODE=auto
+JEANCLAUDE_PERMISSION_MODE=safe
 MEMORY_STORE_PASSWORD=strong-random-password-here
 
 # Debug
