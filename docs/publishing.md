@@ -7,10 +7,10 @@ This document describes the release process, semantic versioning, package checks
 JeanClaude follows [Semantic Versioning](https://semver.org/):
 
 - **MAJOR** (`1.0.0`): Breaking changes to the CLI, Docker interface, or environment variable contract.
-- **MINOR** (`0.2.1`): New features (new MCP tools, new models, new subcommands) in a backward-compatible manner.
+- **MINOR** (`0.2.3`): New features (new MCP tools, new models, new subcommands) in a backward-compatible manner.
 - **PATCH** (`0.1.1`): Bug fixes, security patches, documentation improvements.
 
-Current version: **0.2.1** (initial release, 2026-05-11)
+Current version: **0.2.3** (2026-05-15)
 
 ## Pre-Release Checklist
 
@@ -88,7 +88,7 @@ docker compose down
 
 Update the version in these files:
 
-- `tools/package.json` — `"version": "0.2.1"`
+- `tools/package.json` — `"version": "0.2.3"`
 - `CHANGELOG.md` — Add new version section at top
 
 ### 2. Update Changelog
@@ -96,7 +96,7 @@ Update the version in these files:
 Add entries under the new version header:
 
 ```markdown
-## [0.2.1] — 2026-XX-XX
+## [0.2.3] — 2026-05-15
 
 ### Added
 - New feature descriptions
@@ -111,7 +111,7 @@ Add entries under the new version header:
 ### 3. Create a Package
 
 ```bash
-./scripts/package.sh ./dist/jeanclaude-0.2.1.zip
+./scripts/package.sh ./dist/jeanclaude-0.2.3.zip
 ```
 
 This creates a clean distribution archive with all forbidden files excluded.
@@ -119,27 +119,27 @@ This creates a clean distribution archive with all forbidden files excluded.
 ### 4. Verify the Package
 
 ```bash
-unzip -l ./dist/jeanclaude-0.2.1.zip | grep -E '\.(env|DS_Store|log|zip)$'
+unzip -l ./dist/jeanclaude-0.2.3.zip | grep -E '\.(env|DS_Store|log|zip)$'
 # Should have no output (these are excluded)
 
-unzip -l ./dist/jeanclaude-0.2.1.zip | grep '.env.example'
+unzip -l ./dist/jeanclaude-0.2.3.zip | grep '.env.example'
 # Should show .env.example (it's included)
 ```
 
 ### 5. Tag and Push
 
 ```bash
-git tag -a v0.2.1 -m "Release v0.2.1"
-git push origin v0.2.1
+git tag -a v0.2.3 -m "Release v0.2.3"
+git push origin v0.2.3
 ```
 
 ### 6. GitHub Release
 
 Create a release on GitHub:
-- Tag: `v0.2.1`
-- Title: `v0.2.1`
+- Tag: `v0.2.3`
+- Title: `v0.2.3`
 - Body: Copy the relevant section from `CHANGELOG.md`
-- Attach: `./dist/jeanclaude-0.2.1.zip`
+- Attach: `./dist/jeanclaude-0.2.3.zip`
 
 ### 7. Container Image
 
@@ -148,9 +148,9 @@ If publishing container images:
 ```bash
 # Build with release tag
 docker compose build
-docker tag jeanclaude:dev your-registry/jeanclaude:0.2.1
+docker tag jeanclaude:dev your-registry/jeanclaude:0.2.3
 docker tag jeanclaude:dev your-registry/jeanclaude:latest
-docker push your-registry/jeanclaude:0.2.1
+docker push your-registry/jeanclaude:0.2.3
 docker push your-registry/jeanclaude:latest
 ```
 
@@ -253,8 +253,8 @@ JeanClaude uses Drone CI for automated builds (`.drone.yml`):
 
 If a release introduces issues:
 
-1. **Git**: `git checkout v0.2.1` to revert to the previous release
-2. **Container**: `docker pull your-registry/jeanclaude:0.2.1`
+1. **Git**: `git checkout v0.2.3` to revert to the previous release
+2. **Container**: `docker pull your-registry/jeanclaude:0.2.3`
 3. **Downgrade**: Update `.env` if needed, rebuild
 
 ## Support Policy

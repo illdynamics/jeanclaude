@@ -23,9 +23,65 @@ Dangerous mode is Claude Code's built-in `--yolo` flag. When enabled, Claude Cod
 
 In normal mode, Claude Code asks "Allow this command?" before each tool call. In dangerous mode, it skips the prompt and executes immediately.
 
-## How to Enable It
+## Permission Modes (New)
+
+JeanClaude v0.2.3+ supports explicit permission modes via `JEANCLAUDE_PERMISSION_MODE` or `--permission-mode`:
+
+| Mode | Description |
+|---|---|
+| `safe` (default) | Interactive prompts for all tool calls |
+| `accept-edits` | Auto-approve file edits, prompt for bash/network |
+| `auto` | Auto-approve safe operations |
+| `dangerous` | Full bypass — requires safety preflight |
+| `bypassPermissions` | Backward compat alias |
+
+## Dangerous Mode Safety Preflight
+
+Starting in v0.2.1, `JEANCLAUDE_PERMISSION_MODE=dangerous` requires a **triple opt-in** safety preflight:
+
+1. **`JEANCLAUDE_DANGEROUS=1`** — Explicitly opts into dangerous mode
+2. **`JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1`** — Acknowledges understanding of the risks
+3. **Running in container/CI OR `JEANCLAUDE_ALLOW_HOST_DANGEROUS=1`** — Prevents accidental dangerous mode on bare-metal hosts
+
+Container detection checks: `/.dockerenv`, `/run/.containerenv`, `/proc/1/cgroup`, `CI`, `GITHUB_ACTIONS`, `GITLAB_CI`.
+
+On host machines, dangerous mode will **refuse to start** without `JEANCLAUDE_ALLOW_HOST_DANGEROUS=1`. This prevents accidentally running with full bypass on a developer laptop.
+
+```bash
+# This will FAIL on a host machine (missing container/CI)
+JEANCLAUDE_PERMISSION_MODE=dangerous jeanclaude -p "bad idea"
+# jeanclaude: dangerous permission mode preflight FAILED.
+
+# This will PASS (explicit host approval)
+JEANCLAUDE_PERMISSION_MODE=dangerous \
+JEANCLAUDE_DANGEROUS=1 \
+JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1 \
+JEANCLAUDE_ALLOW_HOST_DANGEROUS=1 \
+jeanclaude -p "I know what I'm doing"
+```
+
+## How It Works Internally (v0.2.3+)
+
+When `-Y`/`--yolo` is used, JeanClaude now does **three things** to ensure permissions are fully bypassed:
+
+1. **Adds `--dangerously-skip-permissions`** to the Claude Code CLI args (existing behavior)
+2. **Sets `CLAUDE_CODE_PERMISSION_MODE=bypassPermissions`** as a child-process environment variable — Claude Code respects this at the environment level
+3. **Relaxes `managed-settings.json`** by setting `allowManagedPermissionRulesOnly: false` and `permissions: { grant: ["**"] }` — this prevents Claude Code's managed permission rules from overriding the bypass flag
+
+This triple enforcement ensures that even with Claude Code v2.1.x's managed settings system, permissions are fully bypassed.
 
 ### Via Claude Code Passthrough
+
+```bash
+# Dangerous mode — auto-approve everything (old method: passthrough)
+jeanclaude claude --yolo -p "refactor all TypeScript files"
+
+# Short form — JeanClaude intercepts and handles everything
+jeanclaude -Y "deploy to staging"
+
+# Dangerous mode with specific profile
+jeanclaude -Y --profile v4-pro -p "migrate the database schema"
+```
 
 ```bash
 # Dangerous mode — auto-approve everything
@@ -41,35 +97,34 @@ jeanclaude claude --yolo --profile v4-pro -p "migrate the database schema"
 ### Via Environment Variable
 
 ```bash
-# In .env
+# In .env — auto-approve all tool calls (backward compat)
 JEANCLAUDE_PERMISSION_MODE=bypassPermissions
 ```
 
 Setting `JEANCLAUDE_PERMISSION_MODE=bypassPermissions` is equivalent to `--yolo` — all permission prompts are bypassed. **This affects all sessions, not just one command.**
 
-### Via Managed Settings
+For finer control, use the new permission modes:
+```bash
+# Auto-approve edits only
+JEANCLAUDE_PERMISSION_MODE=accept-edits
 
-By default, JeanClaude's managed settings disable dangerous mode entirely:
-
-```json
-{
-  "permissions": {
-    "disableBypassPermissionsMode": "disable"
-  }
-}
+# Dangerous mode with full safety preflight
+JEANCLAUDE_PERMISSION_MODE=dangerous
+JEANCLAUDE_DANGEROUS=1
+JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1
+# plus container/CI or JEANCLAUDE_ALLOW_HOST_DANGEROUS=1
 ```
 
-This means even `--yolo` won't bypass permissions at the Claude Code level. To allow dangerous mode, you must change this to:
+### Managed Settings (v0.2.3+)
 
-```json
-{
-  "permissions": {
-    "disableBypassPermissionsMode": "allow"
-  }
-}
-```
+JeanClaude v0.2.3+ **automatically relaxes managed settings** when `-Y`/`--yolo` is used. The `rewriteManagedSettingsForYolo()` function rewrites `managed-settings.json` at runtime:
 
-Edit `config/managed-settings.template.json` and rebuild the image, or modify the generated settings at runtime.
+- `allowManagedPermissionRulesOnly` → `false`
+- `permissions` → `{ grant: ["**"] }`
+
+This means you **no longer need to manually edit managed settings** to use dangerous mode — JeanClaude handles it for you.
+
+If you want to manually override this behavior, you can pre-write your own `managed-settings.json` at `$CLAUDE_CONFIG_DIR/managed-settings.json` before launching JeanClaude. The runtime rewrite only affects the current session.
 
 ## What Dangerous Mode Does NOT Do
 
@@ -191,24 +246,25 @@ No network means no accidental API calls, no web fetches, no push to remote — 
 
 ## Permission Model Summary
 
-JeanClaude's permission model has two layers:
+JeanClaude's permission model has three layers:
 
 | Layer | Controlled By | Effect |
 |---|---|---|
+| **JeanClaude permission mode** | `JEANCLAUDE_PERMISSION_MODE` / `--permission-mode` | Sets Claude Code's permission behavior |
+| **Safety preflight** | `JEANCLAUDE_DANGEROUS`, `JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE`, container/CI detection | Prevents accidental dangerous mode on host |
 | **Claude Code permissions** | `settings.json` `permissions` block | Controls which tool categories require approval |
 | **Managed settings** | `config/managed-settings.template.json` | Can disable bypass-permissions mode entirely |
-| **Environment** | `JEANCLAUDE_PERMISSION_MODE` | Sets default permission behavior |
 
 ### Interaction Matrix
 
-| Managed Settings | JEANCLAUDE_PERMISSION_MODE | `--yolo` Flag | Result |
+| JeanClaude Mode | `--yolo` Flag | Result | Env Var |
 |---|---|---|---|
-| `disableBypassPermissionsMode: allow` | `default` | No | Prompts for each tool |
-| `disableBypassPermissionsMode: allow` | `default` | Yes | Auto-approves all tools |
-| `disableBypassPermissionsMode: allow` | `bypassPermissions` | No | Auto-approves all tools |
-| `disableBypassPermissionsMode: disable` | `default` | No | Prompts for each tool |
-| `disableBypassPermissionsMode: disable` | `default` | Yes | **Still prompts** (bypass disabled) |
-| `disableBypassPermissionsMode: disable` | `bypassPermissions` | No | **Still prompts** (bypass disabled) |
+| `safe` (default) | No | Prompts for each tool | — |
+| `safe` (default) | Yes | Auto-approves all tools, managed settings relaxed | `CLAUDE_CODE_PERMISSION_MODE=bypassPermissions` |
+| `accept-edits` | No | Auto-approves edits, prompts for bash/network | — |
+| `auto` | No | Auto-approves safe operations | — |
+| `dangerous` | No | Auto-approves all tools (preflight required) | depends |
+| `bypassPermissions` | No | Auto-approves all tools, managed settings relaxed | `CLAUDE_CODE_PERMISSION_MODE=bypassPermissions` |
 
 ## Warning Signs
 
@@ -247,9 +303,10 @@ If dangerous mode runs amok:
 ## TL;DR
 
 - **Dangerous mode = auto-approve all tool calls**
+- **Requires triple opt-in**: `JEANCLAUDE_DANGEROUS=1`, `JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1`, and container/CI or `JEANCLAUDE_ALLOW_HOST_DANGEROUS=1`
 - **Never enabled by default — no profile, mode, or setting changes it unless you explicitly do**
 - **Only use in isolated containers, VMs, or disposable worktrees**
 - **Never use on production systems or with sensitive data**
 - **Container isolation, read-only mounts, and network restrictions add safety layers**
-- **Disable bypass-permissions in managed settings for maximum safety**
+- **Use `JEANCLAUDE_PERMISSION_MODE=accept-edits` for a safer middle ground**
 - **When in doubt, don't use it**

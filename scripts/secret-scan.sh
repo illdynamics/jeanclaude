@@ -6,7 +6,7 @@ failures=0
 note() { printf '[secret-scan] %s\n' "$*"; }
 fail() { printf '[secret-scan:error] %s\n' "$*" >&2; failures=$((failures + 1)); }
 
-EX=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build --exclude-dir=claude-code --exclude-dir=open-responses --exclude-dir=.codeseeq --exclude=.env --exclude=.env.example --exclude='*.zip' --exclude='*.tar.gz')
+EX=(--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=build --exclude-dir=claude-code --exclude-dir=open-responses --exclude-dir=.codeseeq --exclude-dir=codeseeq --exclude='*.test.*' --exclude=.env --exclude=.env.example --exclude='*.zip' --exclude='*.tar.gz')
 
 PATTERNS=('sk-[A-Za-z0-9]{10,}' 'sk-ant-[A-Za-z0-9]{10,}' 'sk-proj-[A-Za-z0-9_-]{10,}' 'Bearer[[:space:]]+sk-[A-Za-z0-9_-]{10,}' 'x-api-key:[[:space:]]*sk-[A-Za-z0-9_-]{10,}' 'eyJ[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}')
 

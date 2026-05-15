@@ -243,6 +243,11 @@ LAUNCHER_EOF
 }
 
 cmd_update() {
+  # In privacy lockdown, refuse to update
+  if is_truthy "${JEANCLAUDE_PRIVACY_LOCKDOWN:-1}" || is_truthy "${JEANCLAUDE_DISABLE_UPDATES:-1}"; then
+    die "Updates are disabled in privacy lockdown. To update, disable privacy lockdown first: export JEANCLAUDE_PRIVACY_LOCKDOWN=0 JEANCLAUDE_INSECURE_DISABLE_PRIVACY_LOCKDOWN=1"
+  fi
+
   # If we're running from the install dir, pull latest and re-install
   local install_dir="${JEANCLAUDE_INSTALL_DIR:-${HOME}/.config/jeanclaude}"
   local bin_dir="${JEANCLAUDE_BIN_DIR:-${HOME}/bin}"

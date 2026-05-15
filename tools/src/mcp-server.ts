@@ -249,7 +249,7 @@ async function handleRequest(request) {
           protocolVersion: '2024-11-05',
           serverInfo: {
             name: 'jeanclaude-tools',
-            version: '0.2.1'
+            version: '0.2.3'
           },
           capabilities: {
             tools: {}

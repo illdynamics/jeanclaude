@@ -8,10 +8,11 @@
     "v4-pro-thinking"
   ],
   "autoMemoryEnabled": false,
-  "includeGitInstructions": true,
+  "includeGitInstructions": false,
   "disableRemoteControl": true,
   "disableAllHooks": true,
   "disableSkillShellExecution": true,
+  "disableAgentView": true,
   "enabledMcpjsonServers": [
     "jeanclaude-tools"
   ]

@@ -1,6 +1,6 @@
 {
   "name": "jeanclaude",
-  "version": "0.2.1",
+  "version": "0.2.3",
   "private": true,
   "description": "JeanClaude is an independent wrapper around Claude Code",
   "scripts": {

@@ -1,5 +1,64 @@
 # JeanClaude Release Notes
 
+## v0.2.3 — 2026-05-15
+
+### Managed Settings Auto-Relaxation for Dangerous Mode
+- **`-Y`/`--yolo` now rewrites `managed-settings.json`** to set `allowManagedPermissionRulesOnly: false` and `permissions: { grant: ["**"] }`, ensuring Claude Code's managed permission rules don't conflict with the bypass
+- **`CLAUDE_CODE_PERMISSION_MODE=bypassPermissions`** set as child-process env var when `-Y`/`--yolo` or `--permission-mode bypassPermissions` is active — provides environment-level enforcement alongside the CLI flag
+- `CLAUDE_CODE_PERMISSION_MODE` added to `CRITICAL_ENV` propagation list so the env var always reaches the Claude Code child process
+- Same treatment for `--permission-mode bypassPermissions` (non-`-Y` path)
+
+### Bug Fixes
+- `-Y`/`--yolo` no longer silently ignored by Claude Code v2.1.x managed settings — managed settings are now relaxed to allow full permission bypass
+- Managed settings no longer block `--dangerously-skip-permissions` at the Claude Code level
+
+### Auth Mode Selection
+- Explicit auth mode via `JEANCLAUDE_AUTH_MODE` env var or `--auth` CLI flag
+- Five modes: `subscription`, `api-key`, `oauth-token`, `auth-token`, `auto`
+- `subscription` mode removes Anthropic credentials from child Claude Code process — stops the repeated "ANTHROPIC_API_KEY not set" prompt for DeepSeek subscription users
+- Auth mode only affects child process environment, never changes DeepSeek routing
+
+### Permission Mode Rework
+- New permission modes via `JEANCLAUDE_PERMISSION_MODE` env var or `--permission-mode` CLI flag
+- Five modes: `safe` (default), `accept-edits`, `auto`, `dangerous`, `bypassPermissions`
+- Safe by default — no permission bypass flags passed to Claude Code
+- Dangerous mode safety preflight: requires `JEANCLAUDE_DANGEROUS=1` + `JEANCLAUDE_I_UNDERSTAND_DANGEROUS_MODE=1` + container/CI detection or `JEANCLAUDE_ALLOW_HOST_DANGEROUS=1`
+- Container detection: `/.dockerenv`, `/run/.containerenv`, `/proc/1/cgroup`, CI environment variables
+- Claude Code camelCase aliases accepted (`acceptEdits` → `accept-edits`)
+- Backward compatible — `--yolo` / `-Y` still work, `bypassPermissions` still honored
+
+### MCP Health Diagnostics
+- New `scripts/mcp-health-check.sh` standalone diagnostics script
+- JSON-RPC 2.0 initialize handshake over stdio (3 retries, exponential backoff)
+- HTTP endpoint health checks for URL-type MCP servers
+- Required/optional server policy via `JEANCLAUDE_MCP_REQUIRED`
+- Env var resolution for `${VAR}` references in MCP server config
+- Integrated into startup: MCP health checked before launching Claude Code
+
+### Startup Diagnostics
+- Startup banner prints resolved config to stderr: backend, auth mode, permission mode, model, MCP status
+- Suppressed by `JEANCLAUDE_QUIET=1`
+
+### Dry-Run Mode
+- `JEANCLAUDE_DRY_RUN=1` prints resolved command, auth, permissions, model, execution mode and exits 0
+- No Claude Code process spawned — safe inspection of what would run
+
+### Tests
+- 18 new tests (73–90) covering auth modes, permission modes, dry-run, dangerous mode preflight
+- Total test suite: 124 tests, 0 failures
+
+### Bug Fixes
+- Auth mode deletions no longer overwritten by CRITICAL_ENV merge (apply order fixed)
+- `--permission-mode` + `--yolo` conflict detection fixed after flag interception
+- `--permission-mode bypassPermissions` properly passed through to Claude Code when combined with `--yolo`
+
+### Docs
+- `docs/configuration.md`: Auth mode, updated permission modes, dry-run mode, CLI examples
+- `docs/dangerous-mode.md`: Safety preflight requirements, new permission modes, updated interaction matrix
+- `docs/security-model.md`: Auth mode layer added to defense-in-depth
+
+---
+
 ## v0.2.1 — 2026-05-12
 
 ### Licensing
